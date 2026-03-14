@@ -1,8 +1,8 @@
-# ezphp/http
+# ez-php/http
 
 HTTP message objects for PHP — immutable `Request`, `Response`, `RequestFactory`, and `ResponseEmitter`. Zero dependencies.
 
-[![CI](https://github.com/ezphp/http/actions/workflows/ci.yml/badge.svg)](https://github.com/ezphp/http/actions/workflows/ci.yml)
+[![CI](https://github.com/ez-php/http/actions/workflows/ci.yml/badge.svg)](https://github.com/ez-php/http/actions/workflows/ci.yml)
 
 ## Requirements
 
@@ -11,7 +11,7 @@ HTTP message objects for PHP — immutable `Request`, `Response`, `RequestFactor
 ## Installation
 
 ```bash
-composer require ezphp/http
+composer require ez-php/http
 ```
 
 ## Usage

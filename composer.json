@@ -10,10 +10,10 @@
     }
   ],
   "keywords": ["http", "request", "response", "psr", "php"],
-  "homepage": "https://github.com/ezphp/http",
+  "homepage": "https://github.com/ez-php/http",
   "support": {
-    "issues": "https://github.com/ezphp/http/issues",
-    "source": "https://github.com/ezphp/http"
+    "issues": "https://github.com/ez-php/http/issues",
+    "source": "https://github.com/ez-php/http"
   },
   "require": {
     "php": "^8.5"

@@ -86,7 +86,7 @@ When creating a new module or `CLAUDE.md` anywhere in this repository:
 
 **CLAUDE.md structure:**
 - Start with the full content of `CODING_GUIDELINES.md`, verbatim
-- Then add `---` followed by `# Package: ezphp/<name>` (or `# Directory: <name>`)
+- Then add `---` followed by `# Package: ez-php/<name>` (or `# Directory: <name>`)
 - Module-specific section must cover:
   - Source structure (file tree with one-line descriptions per file)
   - Key classes and their responsibilities
@@ -100,7 +100,7 @@ When creating a new module or `CLAUDE.md` anywhere in this repository:
 **Docker setup:** copy `docker-compose.yml`, `docker/`, `.env.example` and `start.sh` from the repository root and adapt them for the module (service names, ports, required services). Use a unique `DB_PORT` in `.env.example` that is not used by any other package — increment by one per package starting with `3306` (root).
 ---
 
-# Package: ezphp/http
+# Package: ez-php/http
 
 HTTP value objects and I/O helpers — `Request`, `Response`, `RequestFactory`, `ResponseEmitter`.
 
@@ -236,9 +236,9 @@ echo $response->body();
 | JSON response helper (`Response::json()`) | Application layer or a response helper trait |
 | Redirect response helper | Application layer |
 | File/stream response | Application layer or a future `StreamResponse` |
-| Request validation | `ezphp/validation` |
+| Request validation | `ez-php/validation` |
 | Session handling | Application session middleware |
-| CORS headers | `ezphp/framework` (`CorsMiddleware`) |
-| HTTP client (outgoing requests) | `ezphp/http-client` |
+| CORS headers | `ez-php/framework` (`CorsMiddleware`) |
+| HTTP client (outgoing requests) | `ez-php/http-client` |
 | PSR-7 / PSR-15 compatibility | Application-level adapter if needed |
 | Multipart / file upload handling | Application layer |
