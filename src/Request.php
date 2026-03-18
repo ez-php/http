@@ -166,4 +166,74 @@ final readonly class Request
             params: $this->params,
         );
     }
+
+    // ── Content negotiation ───────────────────────────────────────────────────
+
+    /**
+     * Return the raw Content-Type header value, or null if absent.
+     *
+     * @return string|null
+     */
+    public function contentType(): ?string
+    {
+        $value = $this->headers['content-type'] ?? null;
+        return is_string($value) ? $value : null;
+    }
+
+    /**
+     * Determine whether the request body is JSON.
+     *
+     * Returns true when the Content-Type header contains "application/json".
+     *
+     * @return bool
+     */
+    public function isJson(): bool
+    {
+        $contentType = $this->contentType();
+        return $contentType !== null && str_contains($contentType, 'application/json');
+    }
+
+    /**
+     * Determine whether the client accepts a JSON response.
+     *
+     * Returns true when the Accept header contains "application/json" or "*\/*".
+     *
+     * @return bool
+     */
+    public function acceptsJson(): bool
+    {
+        return $this->accepts('application/json');
+    }
+
+    /**
+     * Determine whether the request targets a JSON exchange.
+     *
+     * Returns true when the request is JSON (Content-Type) or the client
+     * accepts JSON (Accept header).
+     *
+     * @return bool
+     */
+    public function wantsJson(): bool
+    {
+        return $this->isJson() || $this->acceptsJson();
+    }
+
+    /**
+     * Determine whether the client accepts the given content type.
+     *
+     * Returns true when the Accept header contains the given type or "*\/*".
+     *
+     * @param string $contentType MIME type to check, e.g. "text/html".
+     *
+     * @return bool
+     */
+    public function accepts(string $contentType): bool
+    {
+        $accept = $this->headers['accept'] ?? null;
+        if (!is_string($accept)) {
+            return false;
+        }
+
+        return str_contains($accept, $contentType) || str_contains($accept, '*/*');
+    }
 }
