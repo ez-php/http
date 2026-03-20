@@ -76,6 +76,60 @@ final readonly class Request
     }
 
     /**
+     * Return all query and body parameters merged into a single array.
+     *
+     * Body values take precedence over query values on key collision.
+     *
+     * @return array<string, mixed>
+     */
+    public function all(): array
+    {
+        return array_merge($this->query, $this->body);
+    }
+
+    /**
+     * Determine whether the given key is present in either query or body.
+     *
+     * Uses array_key_exists so a key with a null value is considered present.
+     *
+     * @param string $key
+     *
+     * @return bool
+     */
+    public function has(string $key): bool
+    {
+        return array_key_exists($key, $this->query) || array_key_exists($key, $this->body);
+    }
+
+    /**
+     * Determine whether the given key is present in the query string.
+     *
+     * Uses array_key_exists so a key with a null value is considered present.
+     *
+     * @param string $key
+     *
+     * @return bool
+     */
+    public function hasQuery(string $key): bool
+    {
+        return array_key_exists($key, $this->query);
+    }
+
+    /**
+     * Determine whether the given key is present in the request body.
+     *
+     * Uses array_key_exists so a key with a null value is considered present.
+     *
+     * @param string $key
+     *
+     * @return bool
+     */
+    public function hasInput(string $key): bool
+    {
+        return array_key_exists($key, $this->body);
+    }
+
+    /**
      * @param string     $key
      * @param mixed|null $default
      *
@@ -114,6 +168,34 @@ final readonly class Request
     public function rawBody(): string
     {
         return $this->rawBody;
+    }
+
+    /**
+     * Resolve the client IP address.
+     *
+     * When $trustedProxies is non-empty and REMOTE_ADDR matches one of the
+     * trusted entries, the first IP in the X-Forwarded-For header is returned
+     * instead. Falls back to REMOTE_ADDR when the XFF header is absent.
+     * Returns an empty string when REMOTE_ADDR is not set.
+     *
+     * @param list<string> $trustedProxies IP addresses of trusted reverse proxies.
+     *
+     * @return string
+     */
+    public function ip(array $trustedProxies = []): string
+    {
+        $remoteAddr = $this->server['REMOTE_ADDR'] ?? '';
+        $remoteAddr = is_string($remoteAddr) ? $remoteAddr : '';
+
+        if ($trustedProxies !== [] && in_array($remoteAddr, $trustedProxies, true)) {
+            $xff = $this->headers['x-forwarded-for'] ?? null;
+
+            if (is_string($xff) && $xff !== '') {
+                return trim(explode(',', $xff)[0]);
+            }
+        }
+
+        return $remoteAddr;
     }
 
     /**

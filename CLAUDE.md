@@ -181,11 +181,16 @@ tests/
 | `uri()` | `string` | Full request URI including query string |
 | `query(key, default)` | `mixed` | `$_GET` equivalent |
 | `input(key, default)` | `mixed` | `$_POST` / parsed body equivalent |
+| `all()` | `array<string, mixed>` | Query + body merged; body wins on collision |
+| `has(key)` | `bool` | Key present in query **or** body (`array_key_exists`; null counts as present) |
+| `hasQuery(key)` | `bool` | Key present in query string only |
+| `hasInput(key)` | `bool` | Key present in request body only |
 | `header(key, default)` | `mixed` | Headers (keys always lowercase) |
 | `cookie(key, default)` | `mixed` | `$_COOKIE` equivalent |
 | `server(key, default)` | `mixed` | `$_SERVER` equivalent |
 | `rawBody()` | `string` | Raw `php://input` content |
 | `param(key, default)` | `mixed` | URL route parameters (e.g. `{id}`) set by the router |
+| `ip(trustedProxies[])` | `string` | Client IP; reads `X-Forwarded-For` only when `REMOTE_ADDR` is a trusted proxy |
 
 **Immutable wither methods** — return a new `Request` instance:
 - `withParams(array<string, string>)` — used by the router to attach extracted URL parameters
