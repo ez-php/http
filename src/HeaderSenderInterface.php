@@ -32,4 +32,16 @@ interface HeaderSenderInterface
      * @return void
      */
     public function sendHeader(string $name, string $value): void;
+
+    /**
+     * Send a Set-Cookie header without replacing previously sent cookies.
+     *
+     * The implementation must send `Set-Cookie: $headerValue` with replace=false
+     * so that multiple cookies can be emitted in a single response.
+     *
+     * @param string $headerValue Serialized cookie string (from Cookie::toHeaderValue()).
+     *
+     * @return void
+     */
+    public function sendCookie(string $headerValue): void;
 }

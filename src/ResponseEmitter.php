@@ -37,6 +37,10 @@ final readonly class ResponseEmitter
             $this->headerSender->sendHeader($name, $value);
         }
 
+        foreach ($response->cookies() as $cookie) {
+            $this->headerSender->sendCookie($cookie->toHeaderValue());
+        }
+
         echo $response->body();
     }
 }

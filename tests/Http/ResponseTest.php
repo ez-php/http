@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Http;
 
+use EzPhp\Http\Cookie;
 use EzPhp\Http\Response;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\UsesClass;
 use Tests\TestCase;
 
 /**
@@ -14,6 +16,7 @@ use Tests\TestCase;
  * @package Tests\Http
  */
 #[CoversClass(Response::class)]
+#[UsesClass(Cookie::class)]
 final class ResponseTest extends TestCase
 {
     /**
@@ -85,5 +88,80 @@ final class ResponseTest extends TestCase
             'Content-Type' => 'application/json',
             'X-Custom' => 'value',
         ], $response->headers());
+    }
+
+    // ── cookies ───────────────────────────────────────────────────────────────
+
+    /**
+     * @return void
+     */
+    public function test_cookies_is_empty_by_default(): void
+    {
+        $this->assertSame([], (new Response())->cookies());
+    }
+
+    /**
+     * @return void
+     */
+    public function test_with_cookie_returns_new_instance(): void
+    {
+        $response = new Response();
+        $clone = $response->withCookie('session', 'abc');
+
+        $this->assertNotSame($response, $clone);
+    }
+
+    /**
+     * @return void
+     */
+    public function test_with_cookie_does_not_mutate_original(): void
+    {
+        $response = new Response();
+        $response->withCookie('session', 'abc');
+
+        $this->assertSame([], $response->cookies());
+    }
+
+    /**
+     * @return void
+     */
+    public function test_with_cookie_adds_cookie_to_clone(): void
+    {
+        $response = (new Response())->withCookie('session', 'abc123');
+        $cookies = $response->cookies();
+
+        $this->assertCount(1, $cookies);
+        $this->assertInstanceOf(Cookie::class, $cookies[0]);
+        $this->assertSame('session', $cookies[0]->name());
+        $this->assertSame('abc123', $cookies[0]->value());
+    }
+
+    /**
+     * @return void
+     */
+    public function test_with_cookie_passes_all_options(): void
+    {
+        $response = (new Response())->withCookie('tok', 'val', 3600, '/api', 'example.com', true, true);
+        $cookie = $response->cookies()[0];
+
+        $this->assertSame(3600, $cookie->ttl());
+        $this->assertSame('/api', $cookie->path());
+        $this->assertSame('example.com', $cookie->domain());
+        $this->assertTrue($cookie->isSecure());
+        $this->assertTrue($cookie->isHttpOnly());
+    }
+
+    /**
+     * @return void
+     */
+    public function test_multiple_cookies_can_be_chained(): void
+    {
+        $response = (new Response())
+            ->withCookie('a', '1')
+            ->withCookie('b', '2');
+
+        $this->assertCount(2, $response->cookies());
+        $this->assertSame('a', $response->cookies()[0]->name());
+        $this->assertSame('b', $response->cookies()[1]->name());
     }
 }

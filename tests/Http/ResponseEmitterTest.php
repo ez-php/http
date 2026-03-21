@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Http;
 
+use EzPhp\Http\Cookie;
 use EzPhp\Http\HeaderSenderInterface;
 use EzPhp\Http\NativeHeaderSender;
 use EzPhp\Http\Response;
@@ -20,6 +21,7 @@ use Tests\TestCase;
 #[CoversClass(ResponseEmitter::class)]
 #[CoversClass(NativeHeaderSender::class)]
 #[UsesClass(Response::class)]
+#[UsesClass(Cookie::class)]
 final class ResponseEmitterTest extends TestCase
 {
     /**
@@ -99,6 +101,41 @@ final class ResponseEmitterTest extends TestCase
         $emitter = new ResponseEmitter();
         $this->assertInstanceOf(ResponseEmitter::class, $emitter);
     }
+
+    /**
+     * @return void
+     */
+    public function test_emit_sends_cookies_via_send_cookie(): void
+    {
+        $sender = new SpyHeaderSender();
+        $emitter = new ResponseEmitter($sender);
+        $response = (new Response())->withCookie('session', 'abc123');
+
+        ob_start();
+        $emitter->emit($response);
+        ob_end_clean();
+
+        $this->assertCount(1, $sender->cookies);
+        $this->assertStringContainsString('session=abc123', $sender->cookies[0]);
+    }
+
+    /**
+     * @return void
+     */
+    public function test_emit_sends_multiple_cookies(): void
+    {
+        $sender = new SpyHeaderSender();
+        $emitter = new ResponseEmitter($sender);
+        $response = (new Response())
+            ->withCookie('a', '1')
+            ->withCookie('b', '2');
+
+        ob_start();
+        $emitter->emit($response);
+        ob_end_clean();
+
+        $this->assertCount(2, $sender->cookies);
+    }
 }
 
 /**
@@ -114,6 +151,9 @@ final class SpyHeaderSender implements HeaderSenderInterface
 
     /** @var array<string, string> */
     public array $headers = [];
+
+    /** @var list<string> */
+    public array $cookies = [];
 
     /**
      * @param int $code
@@ -134,5 +174,15 @@ final class SpyHeaderSender implements HeaderSenderInterface
     public function sendHeader(string $name, string $value): void
     {
         $this->headers[$name] = $value;
+    }
+
+    /**
+     * @param string $headerValue
+     *
+     * @return void
+     */
+    public function sendCookie(string $headerValue): void
+    {
+        $this->cookies[] = $headerValue;
     }
 }

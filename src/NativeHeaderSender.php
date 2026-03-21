@@ -34,4 +34,14 @@ final class NativeHeaderSender implements HeaderSenderInterface
     {
         header("$name: $value");
     }
+
+    /**
+     * @param string $headerValue
+     *
+     * @return void
+     */
+    public function sendCookie(string $headerValue): void
+    {
+        header('Set-Cookie: ' . $headerValue, false);
+    }
 }

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests\Http;
 
 use EzPhp\Http\Request;
+use EzPhp\Http\UploadedFile;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\UsesClass;
 use Tests\TestCase;
 
 /**
@@ -14,6 +16,7 @@ use Tests\TestCase;
  * @package Tests\Http
  */
 #[CoversClass(Request::class)]
+#[UsesClass(UploadedFile::class)]
 final class RequestTest extends TestCase
 {
     /**
@@ -302,6 +305,21 @@ final class RequestTest extends TestCase
         $this->assertSame('10.0.0.1', $request->ip(['10.0.0.1']));
     }
 
+    /**
+     * @return void
+     */
+    public function test_ip_falls_back_to_remote_addr_when_xff_is_not_a_valid_ip(): void
+    {
+        $request = new Request(
+            method: 'GET',
+            uri: '/',
+            headers: ['x-forwarded-for' => 'not-an-ip'],
+            server: ['REMOTE_ADDR' => '10.0.0.1'],
+        );
+
+        $this->assertSame('10.0.0.1', $request->ip(['10.0.0.1']));
+    }
+
     // ── has / hasQuery / hasInput ─────────────────────────────────────────────
 
     /**
@@ -464,5 +482,180 @@ final class RequestTest extends TestCase
         $request = new Request(method: 'POST', uri: '/', body: ['email' => 'a@b.com']);
 
         $this->assertSame(['email' => 'a@b.com'], $request->all());
+    }
+
+    // ── file ─────────────────────────────────────────────────────────────────
+
+    /**
+     * @return void
+     */
+    public function test_file_returns_uploaded_file_for_known_key(): void
+    {
+        $file = new UploadedFile('photo.jpg', 'image/jpeg', 1024, '/tmp/phpXXX', UPLOAD_ERR_OK);
+        $request = new Request(method: 'POST', uri: '/', files: ['avatar' => $file]);
+
+        $this->assertSame($file, $request->file('avatar'));
+    }
+
+    /**
+     * @return void
+     */
+    public function test_file_returns_null_for_missing_key(): void
+    {
+        $request = new Request(method: 'POST', uri: '/');
+
+        $this->assertNull($request->file('avatar'));
+    }
+
+    /**
+     * @return void
+     */
+    public function test_with_params_preserves_files(): void
+    {
+        $file = new UploadedFile('doc.pdf', 'application/pdf', 512, '/tmp/phpYYY', UPLOAD_ERR_OK);
+        $request = new Request(method: 'POST', uri: '/', files: ['attachment' => $file]);
+
+        $new = $request->withParams(['id' => '1']);
+
+        $this->assertSame($file, $new->file('attachment'));
+    }
+
+    /**
+     * @return void
+     */
+    public function test_with_method_preserves_files(): void
+    {
+        $file = new UploadedFile('doc.pdf', 'application/pdf', 512, '/tmp/phpZZZ', UPLOAD_ERR_OK);
+        $request = new Request(method: 'POST', uri: '/', files: ['attachment' => $file]);
+
+        $new = $request->withMethod('PUT');
+
+        $this->assertSame($file, $new->file('attachment'));
+    }
+
+    // ── JSON body auto-parsing ────────────────────────────────────────────────
+
+    /**
+     * @return void
+     */
+    public function test_input_parses_json_body_when_content_type_is_json(): void
+    {
+        $request = new Request(
+            method: 'POST',
+            uri: '/',
+            headers: ['content-type' => 'application/json'],
+            rawBody: '{"name":"Alice","age":30}',
+        );
+
+        $this->assertSame('Alice', $request->input('name'));
+        $this->assertSame(30, $request->input('age'));
+    }
+
+    /**
+     * @return void
+     */
+    public function test_all_merges_json_body_with_query(): void
+    {
+        $request = new Request(
+            method: 'POST',
+            uri: '/',
+            query: ['page' => '2'],
+            headers: ['content-type' => 'application/json'],
+            rawBody: '{"name":"Bob"}',
+        );
+
+        $this->assertSame(['page' => '2', 'name' => 'Bob'], $request->all());
+    }
+
+    /**
+     * @return void
+     */
+    public function test_json_body_takes_precedence_over_query_on_collision(): void
+    {
+        $request = new Request(
+            method: 'POST',
+            uri: '/',
+            query: ['name' => 'query-value'],
+            headers: ['content-type' => 'application/json'],
+            rawBody: '{"name":"json-value"}',
+        );
+
+        $this->assertSame(['name' => 'json-value'], $request->all());
+    }
+
+    /**
+     * @return void
+     */
+    public function test_has_returns_true_for_key_in_json_body(): void
+    {
+        $request = new Request(
+            method: 'POST',
+            uri: '/',
+            headers: ['content-type' => 'application/json'],
+            rawBody: '{"token":"abc"}',
+        );
+
+        $this->assertTrue($request->has('token'));
+    }
+
+    /**
+     * @return void
+     */
+    public function test_has_input_returns_true_for_key_in_json_body(): void
+    {
+        $request = new Request(
+            method: 'POST',
+            uri: '/',
+            headers: ['content-type' => 'application/json'],
+            rawBody: '{"token":"abc"}',
+        );
+
+        $this->assertTrue($request->hasInput('token'));
+    }
+
+    /**
+     * @return void
+     */
+    public function test_explicit_body_takes_precedence_over_json_raw_body(): void
+    {
+        $request = new Request(
+            method: 'POST',
+            uri: '/',
+            body: ['name' => 'form-value'],
+            headers: ['content-type' => 'application/json'],
+            rawBody: '{"name":"json-value"}',
+        );
+
+        $this->assertSame('form-value', $request->input('name'));
+    }
+
+    /**
+     * @return void
+     */
+    public function test_json_parsing_skipped_without_json_content_type(): void
+    {
+        $request = new Request(
+            method: 'POST',
+            uri: '/',
+            rawBody: '{"name":"Alice"}',
+        );
+
+        $this->assertNull($request->input('name'));
+    }
+
+    /**
+     * @return void
+     */
+    public function test_invalid_json_raw_body_returns_empty(): void
+    {
+        $request = new Request(
+            method: 'POST',
+            uri: '/',
+            headers: ['content-type' => 'application/json'],
+            rawBody: '{invalid-json',
+        );
+
+        $this->assertNull($request->input('name'));
+        $this->assertSame([], $request->all());
     }
 }

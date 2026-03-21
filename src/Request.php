@@ -16,13 +16,14 @@ final readonly class Request
      *
      * @param string $method
      * @param string $uri
-     * @param array<string, mixed>  $query
-     * @param array<string, mixed>  $body
-     * @param array<string, mixed>  $headers
-     * @param array<string, mixed>  $cookies
-     * @param array<string, mixed>  $server
-     * @param string $rawBody
-     * @param array<string, string> $params
+     * @param array<string, mixed>        $query
+     * @param array<string, mixed>        $body
+     * @param array<string, mixed>        $headers
+     * @param array<string, mixed>        $cookies
+     * @param array<string, mixed>        $server
+     * @param string                      $rawBody
+     * @param array<string, string>       $params
+     * @param array<string, UploadedFile> $files
      */
     public function __construct(
         private string $method,
@@ -34,6 +35,7 @@ final readonly class Request
         private array $server = [],
         private string $rawBody = '',
         private array $params = [],
+        private array $files = [],
     ) {
     }
 
@@ -72,19 +74,21 @@ final readonly class Request
      */
     public function input(string $key, mixed $default = null): mixed
     {
-        return $this->body[$key] ?? $default;
+        return $this->parsedBody()[$key] ?? $default;
     }
 
     /**
      * Return all query and body parameters merged into a single array.
      *
+     * When Content-Type is application/json and the body array is empty, the
+     * raw request body is decoded and merged transparently with query parameters.
      * Body values take precedence over query values on key collision.
      *
      * @return array<string, mixed>
      */
     public function all(): array
     {
-        return array_merge($this->query, $this->body);
+        return array_merge($this->query, $this->parsedBody());
     }
 
     /**
@@ -98,7 +102,7 @@ final readonly class Request
      */
     public function has(string $key): bool
     {
-        return array_key_exists($key, $this->query) || array_key_exists($key, $this->body);
+        return array_key_exists($key, $this->query) || array_key_exists($key, $this->parsedBody());
     }
 
     /**
@@ -126,7 +130,7 @@ final readonly class Request
      */
     public function hasInput(string $key): bool
     {
-        return array_key_exists($key, $this->body);
+        return array_key_exists($key, $this->parsedBody());
     }
 
     /**
@@ -191,7 +195,11 @@ final readonly class Request
             $xff = $this->headers['x-forwarded-for'] ?? null;
 
             if (is_string($xff) && $xff !== '') {
-                return trim(explode(',', $xff)[0]);
+                $candidate = trim(explode(',', $xff)[0]);
+
+                if (filter_var($candidate, FILTER_VALIDATE_IP) !== false) {
+                    return $candidate;
+                }
             }
         }
 
@@ -207,6 +215,18 @@ final readonly class Request
     public function param(string $key, mixed $default = null): mixed
     {
         return $this->params[$key] ?? $default;
+    }
+
+    /**
+     * Return the uploaded file for the given form field name, or null if absent.
+     *
+     * @param string $key The form field name corresponding to the file input.
+     *
+     * @return UploadedFile|null
+     */
+    public function file(string $key): ?UploadedFile
+    {
+        return $this->files[$key] ?? null;
     }
 
     /**
@@ -226,6 +246,7 @@ final readonly class Request
             server: $this->server,
             rawBody: $this->rawBody,
             params: $params,
+            files: $this->files,
         );
     }
 
@@ -246,7 +267,38 @@ final readonly class Request
             server: $this->server,
             rawBody: $this->rawBody,
             params: $this->params,
+            files: $this->files,
         );
+    }
+
+    // ── JSON body parsing ─────────────────────────────────────────────────────
+
+    /**
+     * Return the parsed request body.
+     *
+     * When the explicit body array is non-empty it is returned as-is (form-
+     * encoded POST or manually constructed requests). When it is empty and the
+     * request carries a JSON Content-Type, the raw body is decoded and returned
+     * instead. Invalid JSON yields an empty array.
+     *
+     * @return array<string, mixed>
+     */
+    private function parsedBody(): array
+    {
+        if ($this->body !== []) {
+            return $this->body;
+        }
+
+        if ($this->rawBody === '' || !$this->isJson()) {
+            return $this->body;
+        }
+
+        try {
+            $decoded = json_decode($this->rawBody, true, 512, JSON_THROW_ON_ERROR);
+            return is_array($decoded) ? $decoded : [];
+        } catch (\JsonException) {
+            return [];
+        }
     }
 
     // ── Content negotiation ───────────────────────────────────────────────────
