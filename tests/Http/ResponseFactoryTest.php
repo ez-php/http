@@ -23,6 +23,7 @@ final class ResponseFactoryTest extends TestCase
 
     /**
      * @return void
+     * @throws \JsonException
      */
     public function test_json_encodes_array_as_body(): void
     {
@@ -32,6 +33,7 @@ final class ResponseFactoryTest extends TestCase
 
     /**
      * @return void
+     * @throws \JsonException
      */
     public function test_json_sets_content_type_header(): void
     {
@@ -41,6 +43,7 @@ final class ResponseFactoryTest extends TestCase
 
     /**
      * @return void
+     * @throws \JsonException
      */
     public function test_json_default_status_is_200(): void
     {
@@ -50,6 +53,7 @@ final class ResponseFactoryTest extends TestCase
 
     /**
      * @return void
+     * @throws \JsonException
      */
     public function test_json_accepts_custom_status(): void
     {
@@ -59,6 +63,7 @@ final class ResponseFactoryTest extends TestCase
 
     /**
      * @return void
+     * @throws \JsonException
      */
     public function test_json_encodes_null(): void
     {

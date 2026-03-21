@@ -23,6 +23,7 @@ final class ResponseFactory
      * @param int   $status HTTP status code (default 200).
      *
      * @return Response
+     * @throws \JsonException
      */
     public static function json(mixed $data, int $status = 200): Response
     {

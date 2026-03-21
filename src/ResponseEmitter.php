@@ -12,7 +12,7 @@ namespace EzPhp\Http;
  *
  * @package EzPhp\Http
  */
-final class ResponseEmitter
+final readonly class ResponseEmitter
 {
     /**
      * ResponseEmitter Constructor
@@ -20,7 +20,7 @@ final class ResponseEmitter
      * @param HeaderSenderInterface $headerSender Header-sending strategy. Defaults to NativeHeaderSender.
      */
     public function __construct(
-        private readonly HeaderSenderInterface $headerSender = new NativeHeaderSender()
+        private HeaderSenderInterface $headerSender = new NativeHeaderSender()
     ) {
     }
 
