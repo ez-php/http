@@ -22,7 +22,7 @@ final readonly class Request
      * @param array<string, mixed>        $cookies
      * @param array<string, mixed>        $server
      * @param string                      $rawBody
-     * @param array<string, string>       $params
+     * @param array<string, mixed>        $params
      * @param array<string, UploadedFile> $files
      */
     public function __construct(
@@ -230,7 +230,7 @@ final readonly class Request
     }
 
     /**
-     * @param array<string, string> $params
+     * @param array<string, mixed> $params
      *
      * @return self
      */
