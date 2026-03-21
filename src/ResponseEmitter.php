@@ -7,10 +7,23 @@ namespace EzPhp\Http;
 /**
  * Class ResponseEmitter
  *
+ * Sends a Response to the HTTP client. The header-sending logic is delegated
+ * to a HeaderSenderInterface, which allows testing without a real HTTP context.
+ *
  * @package EzPhp\Http
  */
 final class ResponseEmitter
 {
+    /**
+     * ResponseEmitter Constructor
+     *
+     * @param HeaderSenderInterface $headerSender Header-sending strategy. Defaults to NativeHeaderSender.
+     */
+    public function __construct(
+        private readonly HeaderSenderInterface $headerSender = new NativeHeaderSender()
+    ) {
+    }
+
     /**
      * @param Response $response
      *
@@ -18,10 +31,10 @@ final class ResponseEmitter
      */
     public function emit(Response $response): void
     {
-        http_response_code($response->status());
+        $this->headerSender->sendStatus($response->status());
 
         foreach ($response->headers() as $name => $value) {
-            header("$name: $value");
+            $this->headerSender->sendHeader($name, $value);
         }
 
         echo $response->body();
