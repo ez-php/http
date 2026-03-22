@@ -56,6 +56,10 @@ final readonly class Request
     }
 
     /**
+     * Return a query-string parameter by key, or $default when the key is absent.
+     *
+     * Missing key convention: returns $default (null by default). Never throws.
+     *
      * @param string     $key
      * @param mixed|null $default
      *
@@ -67,6 +71,10 @@ final readonly class Request
     }
 
     /**
+     * Return a parsed body parameter by key, or $default when the key is absent.
+     *
+     * Missing key convention: returns $default (null by default). Never throws.
+     *
      * @param string     $key
      * @param mixed|null $default
      *
