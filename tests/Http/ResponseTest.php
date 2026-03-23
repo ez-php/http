@@ -164,4 +164,80 @@ final class ResponseTest extends TestCase
         $this->assertSame('a', $response->cookies()[0]->name());
         $this->assertSame('b', $response->cookies()[1]->name());
     }
+
+    // ── static factory methods ─────────────────────────────────────────────────
+
+    /**
+     * @return void
+     */
+    public function test_json_encodes_data_and_sets_content_type(): void
+    {
+        $response = Response::json(['key' => 'value']);
+
+        $this->assertSame(200, $response->status());
+        $this->assertSame('{"key":"value"}', $response->body());
+        $this->assertSame('application/json', $response->headers()['Content-Type']);
+    }
+
+    /**
+     * @return void
+     */
+    public function test_json_accepts_custom_status(): void
+    {
+        $response = Response::json(['error' => 'not found'], 404);
+        $this->assertSame(404, $response->status());
+    }
+
+    /**
+     * @return void
+     */
+    public function test_redirect_sets_location_header_and_302_status(): void
+    {
+        $response = Response::redirect('/dashboard');
+
+        $this->assertSame(302, $response->status());
+        $this->assertSame('/dashboard', $response->headers()['Location']);
+        $this->assertSame('', $response->body());
+    }
+
+    /**
+     * @return void
+     */
+    public function test_redirect_accepts_custom_status(): void
+    {
+        $response = Response::redirect('/login', 301);
+        $this->assertSame(301, $response->status());
+    }
+
+    /**
+     * @return void
+     */
+    public function test_html_sets_body_and_content_type(): void
+    {
+        $response = Response::html('<h1>Hello</h1>');
+
+        $this->assertSame(200, $response->status());
+        $this->assertSame('<h1>Hello</h1>', $response->body());
+        $this->assertSame('text/html; charset=UTF-8', $response->headers()['Content-Type']);
+    }
+
+    /**
+     * @return void
+     */
+    public function test_html_accepts_custom_status(): void
+    {
+        $response = Response::html('<p>Error</p>', 422);
+        $this->assertSame(422, $response->status());
+    }
+
+    /**
+     * @return void
+     */
+    public function test_no_content_returns_204_with_empty_body(): void
+    {
+        $response = Response::noContent();
+
+        $this->assertSame(204, $response->status());
+        $this->assertSame('', $response->body());
+    }
 }

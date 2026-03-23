@@ -109,4 +109,55 @@ final class Response
     {
         return $this->cookies;
     }
+
+    /**
+     * Create a JSON response with the appropriate Content-Type header.
+     *
+     * @param mixed $data   Data to encode as JSON.
+     * @param int   $status HTTP status code (default: 200).
+     *
+     * @return static
+     * @throws \JsonException When $data cannot be encoded.
+     */
+    public static function json(mixed $data, int $status = 200): static
+    {
+        $body = json_encode($data, JSON_THROW_ON_ERROR);
+        return (new static($body, $status))->withHeader('Content-Type', 'application/json');
+    }
+
+    /**
+     * Create a redirect response.
+     *
+     * @param string $url    Target URL.
+     * @param int    $status HTTP redirect status code (default: 302).
+     *
+     * @return static
+     */
+    public static function redirect(string $url, int $status = 302): static
+    {
+        return (new static('', $status))->withHeader('Location', $url);
+    }
+
+    /**
+     * Create an HTML response with the appropriate Content-Type header.
+     *
+     * @param string $body   HTML body.
+     * @param int    $status HTTP status code (default: 200).
+     *
+     * @return static
+     */
+    public static function html(string $body, int $status = 200): static
+    {
+        return (new static($body, $status))->withHeader('Content-Type', 'text/html; charset=UTF-8');
+    }
+
+    /**
+     * Create a 204 No Content response.
+     *
+     * @return static
+     */
+    public static function noContent(): static
+    {
+        return new static('', 204);
+    }
 }
