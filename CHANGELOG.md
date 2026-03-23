@@ -2,6 +2,12 @@
 
 All notable changes to `ez-php/http` are documented here.
 
+## [v0.9.0] — 2026-03-23
+
+### Documentation
+- Update CHANGELOG for v0.8.6 [skip ci] (df8c63c)
+
+
 ## [v0.8.6] — 2026-03-23
 
 ### Documentation
