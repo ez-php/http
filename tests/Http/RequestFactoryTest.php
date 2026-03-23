@@ -155,4 +155,55 @@ final class RequestFactoryTest extends TestCase
 
         $this->assertNull($request->file('avatar'));
     }
+
+    /**
+     * When Content-Type is application/json but php://input is empty (as in CLI/unit tests),
+     * no JSON parsing is attempted and the body remains empty — no exception is thrown.
+     *
+     * @return void
+     */
+    public function test_json_content_type_with_empty_raw_body_leaves_body_empty(): void
+    {
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        $_SERVER['REQUEST_URI'] = '/api';
+        $_SERVER['CONTENT_TYPE'] = 'application/json';
+
+        $request = RequestFactory::createFromGlobals();
+
+        $this->assertNull($request->input('key'));
+    }
+
+    /**
+     * Non-JSON Content-Type must not trigger JSON parsing — body is taken from $_POST as usual.
+     *
+     * @return void
+     */
+    public function test_non_json_content_type_uses_post_body(): void
+    {
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        $_SERVER['REQUEST_URI'] = '/submit';
+        $_SERVER['CONTENT_TYPE'] = 'application/x-www-form-urlencoded';
+        $_POST = ['field' => 'value'];
+
+        $request = RequestFactory::createFromGlobals();
+
+        $this->assertSame('value', $request->input('field'));
+    }
+
+    /**
+     * Content-Type with charset suffix must still be detected as JSON.
+     *
+     * @return void
+     */
+    public function test_json_content_type_with_charset_suffix_is_detected(): void
+    {
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        $_SERVER['REQUEST_URI'] = '/api';
+        $_SERVER['CONTENT_TYPE'] = 'application/json; charset=utf-8';
+
+        // php://input is empty in CLI — no exception, body stays empty
+        $request = RequestFactory::createFromGlobals();
+
+        $this->assertNull($request->input('key'));
+    }
 }

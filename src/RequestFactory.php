@@ -35,6 +35,14 @@ final class RequestFactory
 
         $rawBody = file_get_contents('php://input') ?: '';
 
+        $contentType = isset($server['CONTENT_TYPE']) && is_string($server['CONTENT_TYPE'])
+            ? $server['CONTENT_TYPE']
+            : '';
+
+        if (str_contains($contentType, 'application/json') && $rawBody !== '') {
+            $body = array_merge($body, self::parseJsonBody($rawBody));
+        }
+
         $files = self::extractFiles($_FILES);
 
         return new Request(
@@ -88,6 +96,28 @@ final class RequestFactory
         }
 
         return $files;
+    }
+
+    /**
+     * Decode a JSON request body into an associative array.
+     *
+     * @param non-empty-string $rawBody
+     *
+     * @return array<string, mixed>
+     * @throws \InvalidArgumentException When the body is not valid JSON or not a JSON object.
+     */
+    private static function parseJsonBody(string $rawBody): array
+    {
+        $decoded = json_decode($rawBody, true);
+
+        if (!is_array($decoded)) {
+            throw new \InvalidArgumentException(
+                'Failed to parse JSON request body: ' . json_last_error_msg()
+            );
+        }
+
+        /** @var array<string, mixed> $decoded — JSON object keys are always strings */
+        return $decoded;
     }
 
     /**
