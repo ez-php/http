@@ -1,6 +1,6 @@
 {
   "name": "ez-php/http",
-  "version": "0.9.3",
+  "version": "1.0.0",
   "description": "HTTP message objects for the ez-php framework — immutable Request, Response, RequestFactory, and ResponseEmitter. Zero dependencies.",
   "type": "library",
   "license": "MIT",
@@ -20,7 +20,7 @@
     "php": "^8.5"
   },
   "require-dev": {
-    "ez-php/docker": "0.*",
+    "ez-php/docker": "^1.0",
     "phpunit/phpunit": "^13.0",
     "phpstan/phpstan": "^2.1",
     "friendsofphp/php-cs-fixer": "^3.94",
