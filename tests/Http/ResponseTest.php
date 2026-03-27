@@ -240,4 +240,73 @@ final class ResponseTest extends TestCase
         $this->assertSame(204, $response->status());
         $this->assertSame('', $response->body());
     }
+
+    // ── withBody ──────────────────────────────────────────────────────────────
+
+    /**
+     * @return void
+     */
+    public function test_with_body_returns_new_instance(): void
+    {
+        $response = new Response('original');
+        $clone = $response->withBody('replaced');
+
+        $this->assertNotSame($response, $clone);
+    }
+
+    /**
+     * @return void
+     */
+    public function test_with_body_does_not_mutate_original(): void
+    {
+        $response = new Response('original');
+        $response->withBody('replaced');
+
+        $this->assertSame('original', $response->body());
+    }
+
+    /**
+     * @return void
+     */
+    public function test_with_body_sets_new_body_on_clone(): void
+    {
+        $response = new Response('original');
+        $clone = $response->withBody('replaced');
+
+        $this->assertSame('replaced', $clone->body());
+    }
+
+    /**
+     * @return void
+     */
+    public function test_with_body_preserves_status(): void
+    {
+        $response = new Response('body', 404);
+        $clone = $response->withBody('new body');
+
+        $this->assertSame(404, $clone->status());
+    }
+
+    /**
+     * @return void
+     */
+    public function test_with_body_preserves_headers(): void
+    {
+        $response = (new Response('body'))->withHeader('Content-Type', 'text/html');
+        $clone = $response->withBody('new body');
+
+        $this->assertSame('text/html', $clone->headers()['Content-Type']);
+    }
+
+    /**
+     * @return void
+     */
+    public function test_with_body_preserves_cookies(): void
+    {
+        $response = (new Response('body'))->withCookie('session', 'abc');
+        $clone = $response->withBody('new body');
+
+        $this->assertCount(1, $clone->cookies());
+        $this->assertSame('session', $clone->cookies()[0]->name());
+    }
 }

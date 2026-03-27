@@ -111,6 +111,23 @@ final class Response
     }
 
     /**
+     * Return a clone of this response with a replaced body.
+     *
+     * All headers and cookies are preserved.
+     *
+     * @param string $body New response body.
+     *
+     * @return static
+     */
+    public function withBody(string $body): static
+    {
+        $clone = clone $this;
+        $clone->body = $body;
+
+        return $clone;
+    }
+
+    /**
      * Create a JSON response with the appropriate Content-Type header.
      *
      * @param mixed $data   Data to encode as JSON.
