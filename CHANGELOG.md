@@ -6,6 +6,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.2.0] — 2026-03-28
+
+### Added
+- `RequestInterface` — explicit contract for HTTP request objects; declares all accessor methods (`method()`, `uri()`, `query()`, `input()`, `header()`, `server()`, `cookie()`, `param()`, `file()`, etc.)
+- `Request` now implements `RequestInterface`; middleware and exception handlers can now type-hint against the interface instead of the concrete class
+
+---
+
 ## [v1.0.1] — 2026-03-25
 
 ### Changed
