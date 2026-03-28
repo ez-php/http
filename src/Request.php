@@ -9,7 +9,7 @@ namespace EzPhp\Http;
  *
  * @package EzPhp\Http
  */
-final readonly class Request
+final readonly class Request implements RequestInterface
 {
     /**
      * Request Constructor
