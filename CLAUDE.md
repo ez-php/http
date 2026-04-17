@@ -166,16 +166,25 @@ This package is a **zero-framework-dependency** standalone library. It has no kn
 
 ```
 src/
-├── Request.php          — Immutable HTTP request value object (final readonly class)
-├── Response.php         — Mutable-via-clone HTTP response value object
-├── RequestFactory.php   — Builds a Request from PHP superglobals ($_SERVER, $_GET, $_POST, etc.)
-└── ResponseEmitter.php  — Sends a Response to the client via http_response_code() and header()
+├── RequestInterface.php     — Contract for the Request value object
+├── Request.php              — Immutable HTTP request value object (final readonly class)
+├── RequestFactory.php       — Builds a Request from PHP superglobals ($_SERVER, $_GET, $_POST, $_FILES, etc.)
+├── Response.php             — Clone-based HTTP response value object
+├── ResponseFactory.php      — Static helpers: json(), redirect(), html(), text(), noContent()
+├── ResponseEmitter.php      — Sends a Response to the client; delegates header output to HeaderSenderInterface
+├── HeaderSenderInterface.php — Abstraction over header() calls; injectable for testing
+├── NativeHeaderSender.php   — HeaderSenderInterface implementation using PHP's header() and http_response_code()
+├── Cookie.php               — Immutable value object for Set-Cookie attributes; toHeaderValue()
+└── UploadedFile.php         — Wraps a $_FILES entry: isValid(), moveTo(), clientFilename(), clientMimeType(), size()
 
 tests/
 ├── TestCase.php                    — Base PHPUnit test case
-├── Http/RequestTest.php            — Covers Request: all accessors, withParams, withMethod
-├── Http/RequestFactoryTest.php     — Covers RequestFactory: superglobal parsing, header extraction
-└── Http/ResponseTest.php           — Covers Response: status, body, withHeader, headers
+├── Http/RequestTest.php            — Covers Request: all accessors, withParams, withMethod, file()
+├── Http/RequestFactoryTest.php     — Covers RequestFactory: superglobal parsing, header extraction, files
+├── Http/ResponseTest.php           — Covers Response: status, body, withHeader, headers
+├── Http/ResponseFactoryTest.php    — Covers ResponseFactory: json, redirect, html, text, noContent
+├── Http/CookieTest.php             — Covers Cookie: all attributes, toHeaderValue() format
+└── Http/UploadedFileTest.php       — Covers UploadedFile: isValid(), moveTo(), accessors
 ```
 
 ---
