@@ -90,6 +90,24 @@ final class ResponseTest extends TestCase
         ], $response->headers());
     }
 
+    public function test_with_header_rejects_crlf_in_header_value(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        (new Response())->withHeader('X-Custom', "safe\r\nSet-Cookie: evil=1");
+    }
+
+    public function test_with_header_rejects_crlf_in_header_name(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        (new Response())->withHeader("X-Custom\r\nSet-Cookie: evil=1", 'value');
+    }
+
+    public function test_redirect_rejects_crlf_in_location(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        Response::redirect("/next\r\nSet-Cookie: evil=1");
+    }
+
     // ── cookies ───────────────────────────────────────────────────────────────
 
     /**
