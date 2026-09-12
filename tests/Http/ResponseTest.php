@@ -327,4 +327,32 @@ final class ResponseTest extends TestCase
         $this->assertCount(1, $clone->cookies());
         $this->assertSame('session', $clone->cookies()[0]->name());
     }
+
+    /**
+     * @return void
+     */
+    public function test_write_body_passes_the_whole_body_in_one_call(): void
+    {
+        $chunks = [];
+
+        (new Response('hello world'))->writeBody(function (string $chunk) use (&$chunks): void {
+            $chunks[] = $chunk;
+        });
+
+        $this->assertSame(['hello world'], $chunks);
+    }
+
+    /**
+     * @return void
+     */
+    public function test_write_body_on_empty_response_writes_one_empty_chunk(): void
+    {
+        $chunks = [];
+
+        (new Response())->writeBody(function (string $chunk) use (&$chunks): void {
+            $chunks[] = $chunk;
+        });
+
+        $this->assertSame([''], $chunks);
+    }
 }

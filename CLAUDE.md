@@ -228,11 +228,19 @@ src/
 ├── RequestInterface.php     — Contract for the Request value object
 ├── Request.php              — Immutable HTTP request value object (final readonly class)
 ├── RequestFactory.php       — Builds a Request from PHP superglobals ($_SERVER, $_GET, $_POST, $_FILES, etc.)
-├── Response.php             — Clone-based HTTP response value object
+├── ResponseInterface.php    — Body-neutral pipeline contract: status, headers, withHeader, cookies, withCookie, writeBody
+├── Response.php             — Clone-based HTTP response value object with a string body
+├── StreamedResponse.php     — Chunk-factory response; download() for resources, sse() for Server-Sent Events
+├── HeaderValidator.php      — Rejects CR/LF/control characters in header names and values (shared by both responses)
 ├── ResponseFactory.php      — Static helpers: json(), redirect(), html(), text(), noContent()
-├── ResponseEmitter.php      — Sends a Response to the client; delegates header output to HeaderSenderInterface
+├── ResponseEmitter.php      — Sends any ResponseInterface: headers via HeaderSenderInterface, body via OutputInterface
 ├── HeaderSenderInterface.php — Abstraction over header() calls; injectable for testing
 ├── NativeHeaderSender.php   — HeaderSenderInterface implementation using PHP's header() and http_response_code()
+├── OutputInterface.php      — Abstraction over body output: write + flush, client-connected check, ignore_user_abort
+├── NativeOutput.php         — OutputInterface implementation using echo, ob_flush()/flush(), connection_aborted()
+├── ClientDisconnectedException.php — Thrown by the emitter when the client is gone; never reported
+├── Sse/
+│   └── SseEvent.php         — Single Server-Sent Events frame: data, event, id, retry + toString()
 ├── Cookie.php               — Immutable value object for Set-Cookie attributes; toHeaderValue()
 └── UploadedFile.php         — Wraps a $_FILES entry: isValid(), moveTo(), clientFilename(), clientMimeType(), size()
 
@@ -240,7 +248,13 @@ tests/
 ├── TestCase.php                    — Base PHPUnit test case
 ├── Http/RequestTest.php            — Covers Request: all accessors, withParams, withMethod, file()
 ├── Http/RequestFactoryTest.php     — Covers RequestFactory: superglobal parsing, header extraction, files
-├── Http/ResponseTest.php           — Covers Response: status, body, withHeader, headers
+├── Http/ResponseTest.php           — Covers Response: status, body, withHeader, headers, writeBody
+├── Http/StreamedResponseTest.php   — Covers StreamedResponse: chunk order, factory re-read, onError frames, disconnect, download()
+├── Http/StreamedResponseSseTest.php — Covers StreamedResponse::sse(): headers, frames, generic error frame
+├── Http/ResponseEmitterTest.php    — Covers ResponseEmitter via SpyHeaderSender + RecordingOutput: headers, cookies, chunks, disconnect, stream errors
+├── Http/HeaderValidatorTest.php    — Covers HeaderValidator: control characters in names and values
+├── Http/NativeOutputTest.php       — Covers NativeOutput: CLI connection state
+├── Http/Sse/SseEventTest.php       — Covers SseEvent: getters, toString formatting, multi-line data
 ├── Http/ResponseFactoryTest.php    — Covers ResponseFactory: json, redirect, html, text, noContent
 ├── Http/CookieTest.php             — Covers Cookie: all attributes, toHeaderValue() format
 └── Http/UploadedFileTest.php       — Covers UploadedFile: isValid(), moveTo(), accessors
@@ -318,19 +332,15 @@ Static factory. Single responsibility: build a `Request` from PHP superglobals.
 
 ### ResponseEmitter (`src/ResponseEmitter.php`)
 
-Sends a `Response` to the client. Must be called only once per request, after the response is fully built.
+Sends any `ResponseInterface` to the client: status, headers and cookies through `HeaderSenderInterface`, then `ignore_user_abort(true)` and `$response->writeBody($write)` through `OutputInterface`. `$write` flushes each chunk and throws `ClientDisconnectedException` once the client is gone, which ends the body quietly.
 
-```php
-$emitter->emit($response);
-// equivalent to:
-http_response_code($response->status());
-foreach ($response->headers() as $name => $value) {
-    header("$name: $value");
-}
-echo $response->body();
-```
+`emit(ResponseInterface $response, ?Closure $onStreamError = null)` — an exception raised while the body is written happens after headers were sent, so it cannot become an error page; it is passed to `$onStreamError` (the framework reports it) or rethrown when no callback is given.
 
-**Cannot be tested with headers in a CLI/PHPUnit context** — `http_response_code()` and `header()` throw warnings or silently fail when no HTTP context exists. Test the `Response` value object directly; test the emitter via integration/acceptance tests only.
+---
+
+### StreamedResponse (`src/StreamedResponse.php`)
+
+Implements `ResponseInterface` with a `Closure(): iterable<string>` chunk factory and an optional `onError` hook producing error frames. `download()` streams a resource with RFC 6266 `Content-Disposition`; `sse()` streams `SseEvent`s with the event-stream headers and a generic `event: error` frame on failure.
 
 ---
 
@@ -341,6 +351,10 @@ echo $response->body();
 - **No PSR-7** — PSR-7 `MessageInterface` brings significant complexity (streams, URI objects, multiple `withXxx` methods). This package intentionally stays simple. If PSR-7 compatibility is required, adapt at the application boundary.
 - **`Request` header keys normalized to lowercase** — HTTP headers are case-insensitive (RFC 7230). `Request::header()` lowercases on read, eliminating case bugs for inbound headers without requiring normalization at write time (the raw superglobal key casing is never under application control anyway). This normalization is intentionally scoped to `Request` only: `Response::withHeader()`/`headers()` preserve the exact key casing the caller supplies (e.g. `'Content-Type'`), since callers choose that casing deliberately for outbound headers and `ResponseEmitter` sends it as-is — case-insensitive per RFC 7230, so this is not a correctness issue, just an intentional asymmetry between the two classes.
 - **`RequestFactory` is a static class** — There is no reason to inject it; it reads from PHP globals which are process-global anyway. Static methods make the intent clear and avoid pointless instantiation.
+- **Responses write their own body (emit strategy)** — `ResponseInterface::writeBody(Closure $write)` instead of `body(): string` on the interface. The emitter never branches on the response type, so a new response type needs no emitter change, and a string body and a stream are emitted the same way. Only code that genuinely needs the string (e.g. a toolbar injector) checks `instanceof Response`.
+- **`StreamedResponse` takes a chunk *factory*, not an iterable** — a generator can be iterated once; a factory yields a fresh iterator per `writeBody()`, so tests can read the body and clones made by withers never share a half-consumed generator. `download()` is the documented exception: a resource is single-use.
+- **Headers go out before the first chunk** — every exception inside a chunk generator is therefore a mid-stream failure, even one before the first chunk. Checks belong in the controller before it returns the `StreamedResponse`.
+- **Body output behind `OutputInterface`** — mirrors `HeaderSenderInterface`, so flushing and client disconnects are testable without an HTTP context.
 - **`ResponseEmitter` is a regular class** — Unlike `RequestFactory`, it may need to be replaced in tests or extended (e.g. streaming emitter). Keeping it instantiable allows binding a custom emitter in the container.
 - **No JSON/redirect helpers** — `Response::json()`, `Response::redirect()`, etc. are application-layer conveniences. They do not belong in the value object itself.
 - **Zero framework dependencies** — This package must remain usable standalone. Do not import Application, Container, Router, or any other framework class.
@@ -351,7 +365,7 @@ echo $response->body();
 
 - **No external infrastructure required** — All tests are purely in-process.
 - **`RequestFactory` tests** — Populate `$_SERVER`, `$_GET`, `$_POST`, `$_COOKIE` directly in the test, then restore in `tearDown`. Do not rely on `php://input` in unit tests — test its absence (empty string fallback).
-- **`ResponseEmitter` is not unit-tested here** — `header()` and `http_response_code()` cannot be asserted in a CLI test context. Cover emitter behaviour via integration/acceptance tests in the application.
+- **`ResponseEmitter` is unit-tested through fakes** — `SpyHeaderSender` and `RecordingOutput` (both in `ResponseEmitterTest.php`) replace the native SAPI calls. `NativeHeaderSender` and `NativeOutput::write()` stay untested: `header()` cannot be asserted in CLI, and `ob_flush()` pushes output past PHPUnit's capture buffer.
 - **`#[UsesClass]` required** — PHPUnit is configured with `beStrictAboutCoverageMetadata=true`. Declare indirectly used classes with `#[UsesClass]`.
 
 ---

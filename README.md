@@ -1,6 +1,6 @@
 # ez-php/http
 
-HTTP message objects for PHP — immutable `Request`, `Response`, `RequestFactory`, `ResponseFactory`, `ResponseEmitter`, `Cookie`, and `UploadedFile`. Zero dependencies.
+HTTP message objects for PHP — immutable `Request`, `Response`, `RequestFactory`, `ResponseFactory`, `StreamedResponse`, `ResponseEmitter`, `Cookie`, and `UploadedFile`. Zero dependencies.
 
 [![CI](https://github.com/ez-php/http/actions/workflows/ci.yml/badge.svg)](https://github.com/ez-php/http/actions/workflows/ci.yml)
 
@@ -66,6 +66,28 @@ $html     = ResponseFactory::html('<h1>Hello</h1>');
 (new ResponseEmitter())->emit($response);
 ```
 
+`emit()` accepts any `ResponseInterface`, including `StreamedResponse`. Inside an ez-php
+application use `$app->send($request, $response)` instead: it reports stream failures and
+runs terminable middleware after the body has been sent.
+
+### Streamed responses
+
+```php
+use EzPhp\Http\Sse\SseEvent;
+use EzPhp\Http\StreamedResponse;
+
+// File download — the resource is read in chunks and closed afterwards
+$download = StreamedResponse::download($storage->getStream('reports/q3.csv'), 'q3.csv', $size, 'text/csv');
+
+// Server-Sent Events
+$events = StreamedResponse::sse(function (): \Generator {
+    yield new SseEvent(json_encode(['progress' => 50], JSON_THROW_ON_ERROR), 'progress');
+});
+```
+
+Headers are sent before the first chunk, so an exception inside the generator can no longer become
+an error page. Check authorisation and inputs **before** returning a `StreamedResponse`.
+
 ### Cookie
 
 ```php
@@ -107,7 +129,7 @@ if ($file !== null && $file->isValid()) {
 | `RequestFactory` | Builds a `Request` from PHP superglobals |
 | `Response` | HTTP response value object; clone-based `withHeader()` |
 | `ResponseFactory` | Static helpers: `json()`, `redirect()`, `html()`, `text()`, `noContent()` |
-| `ResponseEmitter` | Sends a `Response` to the client via `http_response_code()` and `header()` |
+| `ResponseEmitter` | Sends any `ResponseInterface` — headers via `HeaderSenderInterface`, body via `OutputInterface`, chunk by chunk for streams |
 | `HeaderSenderInterface` | Abstraction over `header()` calls (injectable for testing) |
 | `NativeHeaderSender` | Default `HeaderSenderInterface` implementation using PHP's `header()` |
 | `Cookie` | Immutable value object for `Set-Cookie` attributes; `toHeaderValue()` produces the header string |

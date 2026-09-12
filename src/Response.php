@@ -50,6 +50,18 @@ final class Response implements ResponseInterface
     }
 
     /**
+     * Write the whole body in a single call.
+     *
+     * @param \Closure(string): void $write
+     *
+     * @return void
+     */
+    public function writeBody(\Closure $write): void
+    {
+        $write($this->body);
+    }
+
+    /**
      * @param string $name
      * @param string $value
      *
@@ -60,37 +72,11 @@ final class Response implements ResponseInterface
      */
     public function withHeader(string $name, string $value): Response
     {
-        $this->assertNoControlCharacters($name, 'header name');
-        $this->assertNoControlCharacters($value, 'header value');
+        HeaderValidator::assertValid($name, $value);
 
         $clone = clone $this;
         $clone->headers[$name] = $value;
         return $clone;
-    }
-
-    /**
-     * Reject a header name/value containing CR, LF, or other control
-     * characters, so a value built from untrusted input cannot inject
-     * additional headers into the response (header/response splitting).
-     *
-     * PHP's native `header()` already blocks embedded CR/LF, but that
-     * protection lives outside this class — a future `HeaderSenderInterface`
-     * implementation that builds a raw response string (e.g. for a
-     * non-native SAPI) would not get it for free. Checking here keeps the
-     * guarantee attached to the value object itself.
-     *
-     * @param string $value Value to check.
-     * @param string $label Human-readable label used in the exception message.
-     *
-     * @throws \InvalidArgumentException When $value contains a control character.
-     *
-     * @return void
-     */
-    private function assertNoControlCharacters(string $value, string $label): void
-    {
-        if (preg_match('/[\x00-\x1F\x7F]/', $value) === 1) {
-            throw new \InvalidArgumentException("Invalid {$label}: contains a control character.");
-        }
     }
 
     /**
