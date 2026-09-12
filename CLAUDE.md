@@ -129,6 +129,14 @@ vendor/bin/docker-init
 
 This copies `Dockerfile`, `docker-compose.yml`, `.env.example`, `start.sh`, and `docker/` into the module, replacing `{{MODULE_NAME}}` placeholders. Existing files are never overwritten.
 
+Pass `--services` to merge MySQL/Redis service definitions directly into `docker-compose.yml` and uncomment the matching sections in `.env.example`, instead of adapting them by hand afterward:
+
+```
+vendor/bin/docker-init --services=mysql
+vendor/bin/docker-init --services=redis
+vendor/bin/docker-init --services=mysql,redis
+```
+
 After scaffolding:
 
 1. Adapt `docker-compose.yml` — add or remove services (MySQL, Redis) as needed
@@ -283,7 +291,7 @@ echo $response->body();
 - **`Request` is `final readonly`** — Immutability is enforced by the language. Route parameters and method overrides are applied by returning new instances via `withParams()` / `withMethod()`, preserving the original object throughout the middleware chain.
 - **`Response` uses clone-based withers** — PHP's `readonly` class feature prevents post-construction mutation, but `header()` addition is a natural part of building a response in middleware. Clone-based withers keep the API clean without requiring a builder pattern.
 - **No PSR-7** — PSR-7 `MessageInterface` brings significant complexity (streams, URI objects, multiple `withXxx` methods). This package intentionally stays simple. If PSR-7 compatibility is required, adapt at the application boundary.
-- **Header keys normalized to lowercase** — HTTP headers are case-insensitive (RFC 7230). Lowercasing on read eliminates case bugs without requiring normalization at write time.
+- **`Request` header keys normalized to lowercase** — HTTP headers are case-insensitive (RFC 7230). `Request::header()` lowercases on read, eliminating case bugs for inbound headers without requiring normalization at write time (the raw superglobal key casing is never under application control anyway). This normalization is intentionally scoped to `Request` only: `Response::withHeader()`/`headers()` preserve the exact key casing the caller supplies (e.g. `'Content-Type'`), since callers choose that casing deliberately for outbound headers and `ResponseEmitter` sends it as-is — case-insensitive per RFC 7230, so this is not a correctness issue, just an intentional asymmetry between the two classes.
 - **`RequestFactory` is a static class** — There is no reason to inject it; it reads from PHP globals which are process-global anyway. Static methods make the intent clear and avoid pointless instantiation.
 - **`ResponseEmitter` is a regular class** — Unlike `RequestFactory`, it may need to be replaced in tests or extended (e.g. streaming emitter). Keeping it instantiable allows binding a custom emitter in the container.
 - **No JSON/redirect helpers** — `Response::json()`, `Response::redirect()`, etc. are application-layer conveniences. They do not belong in the value object itself.

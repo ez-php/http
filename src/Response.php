@@ -9,7 +9,7 @@ namespace EzPhp\Http;
  *
  * @package EzPhp\Http
  */
-final class Response
+final class Response implements ResponseInterface
 {
     /**
      * @var array<string, string>
