@@ -39,9 +39,7 @@ final class RequestFactory
             ? $server['CONTENT_TYPE']
             : '';
 
-        if (str_contains($contentType, 'application/json') && $rawBody !== '') {
-            $body = array_merge($body, self::parseJsonBody($rawBody));
-        }
+        $body = self::mergeJsonBody($body, $contentType, $rawBody);
 
         $files = self::extractFiles($_FILES);
 
@@ -96,6 +94,34 @@ final class RequestFactory
         }
 
         return $files;
+    }
+
+    /**
+     * Merge a JSON request body into the parsed body array, when applicable.
+     *
+     * Malformed JSON must not crash request construction, which runs before
+     * the exception handler is wired up (see Application::bootstrap()) — an
+     * uncaught exception here would surface as a raw fatal error instead of a
+     * rendered error page. Falls back to leaving $body unchanged on failure,
+     * matching Request::parsedBody()'s existing malformed-JSON behavior.
+     *
+     * @param array<string, mixed> $body
+     * @param string               $contentType
+     * @param string               $rawBody
+     *
+     * @return array<string, mixed>
+     */
+    private static function mergeJsonBody(array $body, string $contentType, string $rawBody): array
+    {
+        if (!str_contains($contentType, 'application/json') || $rawBody === '') {
+            return $body;
+        }
+
+        try {
+            return array_merge($body, self::parseJsonBody($rawBody));
+        } catch (\InvalidArgumentException) {
+            return $body;
+        }
     }
 
     /**

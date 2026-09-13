@@ -176,6 +176,15 @@ final class ResponseFactoryTest extends TestCase
         $this->assertSame('', $response->body());
     }
 
+    /**
+     * @return void
+     */
+    public function test_redirect_rejects_crlf_in_location(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        ResponseFactory::redirect("/next\r\nSet-Cookie: evil=1");
+    }
+
     // ── noContent ────────────────────────────────────────────────────────────
 
     /**

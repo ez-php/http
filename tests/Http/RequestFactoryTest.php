@@ -206,4 +206,23 @@ final class RequestFactoryTest extends TestCase
 
         $this->assertNull($request->input('key'));
     }
+
+    /**
+     * Malformed JSON must not escape request construction as an uncaught exception —
+     * it runs before Application::bootstrap() wires up the exception handler, so an
+     * uncaught InvalidArgumentException here would surface as a raw fatal error
+     * instead of a rendered error page. Exercised via reflection on the private
+     * merge step since php://input cannot be populated with a non-empty body in a
+     * CLI unit test (see the empty-body tests above).
+     *
+     * @return void
+     */
+    public function test_malformed_json_body_does_not_throw(): void
+    {
+        $method = new \ReflectionMethod(RequestFactory::class, 'mergeJsonBody');
+
+        $result = $method->invoke(null, ['existing' => 'value'], 'application/json', '{not valid json');
+
+        $this->assertSame(['existing' => 'value'], $result);
+    }
 }

@@ -96,7 +96,11 @@ final readonly class Cookie
      * Serialize this cookie to a Set-Cookie header value string.
      *
      * Name and value are URL-encoded. Max-Age is emitted only when ttl > 0.
-     * Path is always emitted when non-empty.
+     * Path and Domain are validated via HeaderValidator (rejecting embedded
+     * control characters) before being emitted, matching the same guarantee
+     * withHeader() provides for arbitrary response headers.
+     *
+     * @throws \InvalidArgumentException When path or domain contains a control character.
      *
      * @return string
      */
@@ -109,10 +113,12 @@ final readonly class Cookie
         }
 
         if ($this->path !== '') {
+            HeaderValidator::assertValid('Path', $this->path);
             $parts[] = 'Path=' . $this->path;
         }
 
         if ($this->domain !== '') {
+            HeaderValidator::assertValid('Domain', $this->domain);
             $parts[] = 'Domain=' . $this->domain;
         }
 

@@ -136,6 +136,28 @@ final class CookieTest extends TestCase
     /**
      * @return void
      */
+    public function test_to_header_value_rejects_crlf_in_path(): void
+    {
+        $cookie = new Cookie('a', 'b', 0, "/admin\r\nX-Injected: evil");
+
+        $this->expectException(\InvalidArgumentException::class);
+        $cookie->toHeaderValue();
+    }
+
+    /**
+     * @return void
+     */
+    public function test_to_header_value_rejects_crlf_in_domain(): void
+    {
+        $cookie = new Cookie('a', 'b', 0, '/', "example.com\r\nX-Injected: evil");
+
+        $this->expectException(\InvalidArgumentException::class);
+        $cookie->toHeaderValue();
+    }
+
+    /**
+     * @return void
+     */
     public function test_to_header_value_full_cookie(): void
     {
         $cookie = new Cookie('sess', 'tok', 7200, '/app', 'example.com', true, true);
