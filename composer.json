@@ -1,6 +1,6 @@
 {
     "name": "ez-php/http",
-    "version": "2.4.9",
+    "version": "2.4.10",
     "description": "HTTP message objects for the ez-php framework \u2014 immutable Request, Response, RequestFactory, and ResponseEmitter. Zero dependencies.",
     "type": "library",
     "license": "MIT",
