@@ -30,6 +30,8 @@ final class StreamedResponseTest extends TestCase
      * @param StreamedResponse $response
      *
      * @return list<string>
+     *
+     * @phpstan-impure
      */
     private function collect(StreamedResponse $response): array
     {
@@ -61,8 +63,10 @@ final class StreamedResponseTest extends TestCase
             yield 'y';
         });
 
-        $this->assertSame(['x', 'y'], $this->collect($response));
-        $this->assertSame(['x', 'y'], $this->collect($response));
+        $firstRun = $this->collect($response);
+        $secondRun = $this->collect($response);
+
+        $this->assertSame([['x', 'y'], ['x', 'y']], [$firstRun, $secondRun]);
     }
 
     /**

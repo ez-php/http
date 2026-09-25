@@ -186,8 +186,12 @@ final readonly class Request implements RequestInterface
      * Resolve the client IP address.
      *
      * When $trustedProxies is non-empty and REMOTE_ADDR matches one of the
-     * trusted entries, the first IP in the X-Forwarded-For header is returned
-     * instead. Falls back to REMOTE_ADDR when the XFF header is absent.
+     * trusted entries, the X-Forwarded-For chain is walked from the right
+     * (each proxy appends the address it saw), skipping trusted proxies, and
+     * the first untrusted hop is returned — everything left of it is
+     * client-controlled and may be forged. If every hop is trusted, the
+     * leftmost entry is returned. Falls back to REMOTE_ADDR when the XFF header
+     * is absent or the first untrusted hop is not a valid IP.
      * Returns an empty string when REMOTE_ADDR is not set.
      *
      * @param list<string> $trustedProxies IP addresses of trusted reverse proxies.
@@ -203,7 +207,15 @@ final readonly class Request implements RequestInterface
             $xff = $this->headers['x-forwarded-for'] ?? null;
 
             if (is_string($xff) && $xff !== '') {
-                $candidate = trim(explode(',', $xff)[0]);
+                $hops = array_map(trim(...), explode(',', $xff));
+                $candidate = $hops[0];
+
+                for ($i = count($hops) - 1; $i >= 0; $i--) {
+                    if (!in_array($hops[$i], $trustedProxies, true)) {
+                        $candidate = $hops[$i];
+                        break;
+                    }
+                }
 
                 if (filter_var($candidate, FILTER_VALIDATE_IP) !== false) {
                     return $candidate;

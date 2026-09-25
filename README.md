@@ -33,7 +33,7 @@ echo $request->header('accept');   // request header (case-insensitive)
 echo $request->cookie('session');  // cookie value
 echo $request->param('id');        // route parameter (set by router)
 echo $request->rawBody();          // raw request body string
-echo $request->ip();               // client IP (X-Forwarded-For aware)
+echo $request->ip(['10.0.0.1']);   // client IP; X-Forwarded-For honoured only from the listed trusted proxies
 
 // Uploaded files
 $file = $request->file('avatar');  // returns UploadedFile|null

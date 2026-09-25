@@ -279,7 +279,7 @@ final class RequestTest extends TestCase
     /**
      * @return void
      */
-    public function test_ip_returns_first_ip_from_x_forwarded_for_chain(): void
+    public function test_ip_walks_x_forwarded_for_from_the_right_skipping_trusted_proxies(): void
     {
         $request = new Request(
             method: 'GET',
@@ -288,7 +288,40 @@ final class RequestTest extends TestCase
             server: ['REMOTE_ADDR' => '10.0.0.1'],
         );
 
-        $this->assertSame('9.9.9.9', $request->ip(['10.0.0.1']));
+        $this->assertSame('9.9.9.9', $request->ip(['10.0.0.1', '10.0.0.2', '10.0.0.3']));
+    }
+
+    /**
+     * The client controls everything left of the last untrusted hop — a forged
+     * leftmost entry must not be returned.
+     *
+     * @return void
+     */
+    public function test_ip_ignores_client_forged_leftmost_x_forwarded_for_entry(): void
+    {
+        $request = new Request(
+            method: 'GET',
+            uri: '/',
+            headers: ['x-forwarded-for' => '6.6.6.6, 1.2.3.4'],
+            server: ['REMOTE_ADDR' => '10.0.0.1'],
+        );
+
+        $this->assertSame('1.2.3.4', $request->ip(['10.0.0.1']));
+    }
+
+    /**
+     * @return void
+     */
+    public function test_ip_returns_leftmost_entry_when_every_hop_is_trusted(): void
+    {
+        $request = new Request(
+            method: 'GET',
+            uri: '/',
+            headers: ['x-forwarded-for' => '10.0.0.3, 10.0.0.2'],
+            server: ['REMOTE_ADDR' => '10.0.0.1'],
+        );
+
+        $this->assertSame('10.0.0.3', $request->ip(['10.0.0.1', '10.0.0.2', '10.0.0.3']));
     }
 
     /**
