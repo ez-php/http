@@ -12,13 +12,22 @@ namespace EzPhp\Http;
 final readonly class Request implements RequestInterface
 {
     /**
+     * Header values keyed by lower-cased header name.
+     *
+     * @var array<string, mixed>
+     */
+    private array $headers;
+
+    /**
      * Request Constructor
      *
      * @param string $method
      * @param string $uri
      * @param array<string, mixed>        $query
      * @param array<string, mixed>        $body
-     * @param array<string, mixed>        $headers
+     * @param array<string, mixed>        $headers Header names are lower-cased here, so every reader
+     *                                             (header(), contentType(), accepts(), ip()) is case-insensitive
+     *                                             however the request was built.
      * @param array<string, mixed>        $cookies
      * @param array<string, mixed>        $server
      * @param string                      $rawBody
@@ -30,13 +39,14 @@ final readonly class Request implements RequestInterface
         private string $uri,
         private array $query = [],
         private array $body = [],
-        private array $headers = [],
+        array $headers = [],
         private array $cookies = [],
         private array $server = [],
         private string $rawBody = '',
         private array $params = [],
         private array $files = [],
     ) {
+        $this->headers = array_change_key_case($headers, CASE_LOWER);
     }
 
     /**

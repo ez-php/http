@@ -103,6 +103,48 @@ final class RequestTest extends TestCase
     /**
      * @return void
      */
+    public function test_mixed_case_header_keys_passed_to_constructor_are_normalised(): void
+    {
+        $request = new Request('GET', '/', headers: ['Accept' => 'application/json', 'X-Request-ID' => 'abc']);
+
+        $this->assertSame('application/json', $request->header('accept'));
+        $this->assertSame('application/json', $request->header('Accept'));
+        $this->assertSame('abc', $request->header('x-request-id'));
+    }
+
+    /**
+     * @return void
+     */
+    public function test_mixed_case_content_type_and_accept_drive_content_negotiation(): void
+    {
+        $request = new Request(
+            'POST',
+            '/',
+            headers: ['Content-Type' => 'application/json', 'ACCEPT' => 'application/json'],
+            rawBody: '{"name":"Ada"}',
+        );
+
+        $this->assertSame('application/json', $request->contentType());
+        $this->assertTrue($request->isJson());
+        $this->assertTrue($request->acceptsJson());
+        $this->assertSame('Ada', $request->input('name'));
+    }
+
+    /**
+     * @return void
+     */
+    public function test_normalised_headers_survive_withers(): void
+    {
+        $request = (new Request('GET', '/', headers: ['X-Custom' => '1']))
+            ->withParams(['id' => '7'])
+            ->withMethod('POST');
+
+        $this->assertSame('1', $request->header('x-custom'));
+    }
+
+    /**
+     * @return void
+     */
     public function test_header_returns_default_when_missing(): void
     {
         $this->assertNull($this->makeRequest()->header('x-missing'));
