@@ -127,7 +127,8 @@ if ($file !== null && $file->isValid()) {
 | `RequestInterface` | Contract for the `Request` value object |
 | `Request` | Immutable HTTP request value object (`final readonly class`) |
 | `RequestFactory` | Builds a `Request` from PHP superglobals |
-| `Response` | HTTP response value object; clone-based `withHeader()` |
+| `Response` | HTTP response value object; clone-based `withHeader()` (case-insensitive replace) |
+| `Headers` | `Headers::get($response->headers(), 'content-type')` — case-insensitive lookup; `set()`/`normalize()` used by both responses |
 | `ResponseFactory` | Static helpers: `json()`, `redirect()`, `html()`, `text()`, `noContent()` |
 | `ResponseEmitter` | Sends any `ResponseInterface` — headers via `HeaderSenderInterface`, body via `OutputInterface`, chunk by chunk for streams |
 | `HeaderSenderInterface` | Abstraction over `header()` calls (injectable for testing) |

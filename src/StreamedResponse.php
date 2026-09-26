@@ -64,7 +64,7 @@ final class StreamedResponse implements ResponseInterface
             HeaderValidator::assertValid($name, $value);
         }
 
-        $this->headers = $headers;
+        $this->headers = Headers::normalize($headers);
     }
 
     /**
@@ -173,6 +173,9 @@ final class StreamedResponse implements ResponseInterface
     }
 
     /**
+     * Return a clone with the header set, replacing an existing header whose name
+     * differs only in case.
+     *
      * @param string $name
      * @param string $value
      *
@@ -185,7 +188,7 @@ final class StreamedResponse implements ResponseInterface
         HeaderValidator::assertValid($name, $value);
 
         $clone = clone $this;
-        $clone->headers[$name] = $value;
+        $clone->headers = Headers::set($this->headers, $name, $value);
 
         return $clone;
     }

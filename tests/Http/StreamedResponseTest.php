@@ -6,6 +6,7 @@ namespace Tests\Http;
 
 use EzPhp\Http\ClientDisconnectedException;
 use EzPhp\Http\Cookie;
+use EzPhp\Http\Headers;
 use EzPhp\Http\HeaderValidator;
 use EzPhp\Http\StreamedResponse;
 use InvalidArgumentException;
@@ -21,6 +22,7 @@ use Tests\TestCase;
  */
 #[CoversClass(StreamedResponse::class)]
 #[UsesClass(HeaderValidator::class)]
+#[UsesClass(Headers::class)]
 #[UsesClass(Cookie::class)]
 final class StreamedResponseTest extends TestCase
 {
@@ -90,6 +92,27 @@ final class StreamedResponseTest extends TestCase
 
         $this->assertSame([], $original->headers());
         $this->assertSame(['X-B' => '2'], $changed->headers());
+    }
+
+    /**
+     * @return void
+     */
+    public function test_with_header_replaces_existing_header_case_insensitively(): void
+    {
+        $response = (new StreamedResponse(fn (): iterable => [], 200, ['Content-Type' => 'text/plain']))
+            ->withHeader('CONTENT-TYPE', 'text/csv');
+
+        $this->assertSame(['CONTENT-TYPE' => 'text/csv'], $response->headers());
+    }
+
+    /**
+     * @return void
+     */
+    public function test_constructor_collapses_case_insensitive_duplicate_headers(): void
+    {
+        $response = new StreamedResponse(fn (): iterable => [], 200, ['X-A' => '1', 'x-a' => '2']);
+
+        $this->assertSame(['x-a' => '2'], $response->headers());
     }
 
     /**

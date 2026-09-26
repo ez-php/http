@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Http;
 
 use EzPhp\Http\Cookie;
+use EzPhp\Http\Headers;
 use EzPhp\Http\Response;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\UsesClass;
@@ -17,6 +18,7 @@ use Tests\TestCase;
  */
 #[CoversClass(Response::class)]
 #[UsesClass(Cookie::class)]
+#[UsesClass(Headers::class)]
 final class ResponseTest extends TestCase
 {
     /**
@@ -73,6 +75,18 @@ final class ResponseTest extends TestCase
     {
         $response = (new Response())->withHeader('Content-Type', 'text/html');
         $this->assertSame(['Content-Type' => 'text/html'], $response->headers());
+    }
+
+    /**
+     * @return void
+     */
+    public function test_with_header_replaces_existing_header_case_insensitively(): void
+    {
+        $response = (new Response())
+            ->withHeader('Content-Type', 'text/html')
+            ->withHeader('content-type', 'application/json');
+
+        $this->assertSame(['content-type' => 'application/json'], $response->headers());
     }
 
     /**

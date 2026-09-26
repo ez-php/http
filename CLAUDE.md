@@ -144,14 +144,14 @@ wiring in one step, wrapping `docker-init` for the Docker subset:
 
 ```
 composer module:make <name> -- --description="..."
-php make_module.php <name> --description="..." --services=mysql,redis
+php make_module.php <name> --description="..." --services=mysql,redis --extensions=gmp
 ```
 
 `<name>` is the kebab-case package name; the namespace is derived as
 `EzPhp\<PascalCase>` (each `-`-separated word upper-cased) unless `--namespace=`
 overrides it. Existing exceptions the guess gets wrong: `bignum` → `BigNum`,
 `dataloader` → `DataLoader`, `dotenv` → `Env`, `graphql` → `GraphQL`, `oauth` → `OAuth`,
-`opcache` → `OPCache`, `swagger-ui` → `SwaggerUI`, `webauthn` → `WebAuthn` and
+`opcache` → `OPCache`, `openapi` → `OpenApi`, `swagger-ui` → `SwaggerUI`, `webauthn` → `WebAuthn` and
 `websocket` → `WebSocket`; `websocket-client` → `WebsocketClient`, `websocket-tls` → `WebsocketTls`,
 `webauthn-metadata` → `WebauthnMetadata` and `metrics-statsd` → `MetricsStatsd` are
 intentional lower-case-word namespaces, and `testing-application` shares `EzPhp\Testing\`
@@ -166,7 +166,7 @@ php make_module.php <name> --repo=<git-url> [--namespace=Foo]
 
 This runs `git submodule add <url> modules/<name>` instead of writing package
 files, then applies the same monorepo wiring below. It is mutually exclusive
-with `--services` and `--description` — a submodule brings its own Docker
+with `--services`/`--extensions` and `--description` — a submodule brings its own Docker
 scaffold (if any) and its own `composer.json` description. A minimal `CLAUDE.md`
 stub is written only if the submodule doesn't already ship one, so
 `composer guidelines:sync` has a `# Package:` heading to anchor part 1 against.
@@ -235,19 +235,23 @@ After scaffolding:
 | `ez-php/rate-limiter` | — | 6382 (`REDIS_HOST_PORT`) | — |
 | `ez-php/search` | — | — | 7701 |
 | `ez-php/event-store` | 3311 | — | — |
-| **next free** | **3312** | **6384** | **7702** |
+| `ez-php/broadcast` | — | 6384 (`REDIS_HOST_PORT`) | — |
+| `ez-php/feature-flags` | — | 6385 (`REDIS_HOST_PORT`) | — |
+| `ez-php/scheduler` | — | 6386 (`REDIS_HOST_PORT`) | — |
+| `ez-php/session` | — | 6387 (`REDIS_HOST_PORT`) | — |
+| **next free** | **3312** | **6388** | **7702** |
 
 Only set a port for services the module actually uses. Modules without external services need no port config.
 
 > The `MEILISEARCH_PORT` column is the **host** port. Inside a Compose network the service is always reachable at `http://meilisearch:7700` regardless of the host mapping — only publish-side ports need to be unique.
 
-> The "Redis host port" column is likewise the **host**-published port. `ez-php/cache`, `ez-php/queue`, and `ez-php/rate-limiter` map it through a separate `REDIS_HOST_PORT` env var in `docker-compose.yml`, keeping `REDIS_PORT` fixed at `6379` for in-container connections (the app container always reaches Redis at `redis:6379` over the Compose network, regardless of the host mapping) — the root project and the `ez-php/` application template are the two exceptions, since both have no host/container split and use `REDIS_PORT` for both (the template's other in-container Redis settings — `CACHE_REDIS_PORT`, `QUEUE_REDIS_PORT`, `RATE_LIMITER_REDIS_PORT`, `HEALTH_REDIS_PORT` — stay fixed at `6379` regardless, same as every other module).
+> The "Redis host port" column is likewise the **host**-published port. Every module row maps it through a separate `REDIS_HOST_PORT` env var in `docker-compose.yml`, keeping `REDIS_PORT` fixed at `6379` for in-container connections (the app container always reaches Redis at `redis:6379` over the Compose network, regardless of the host mapping) — the root project and the `ez-php/` application template are the two exceptions, since both have no host/container split and use `REDIS_PORT` for both (the template's other in-container Redis settings — `CACHE_REDIS_PORT`, `QUEUE_REDIS_PORT`, `RATE_LIMITER_REDIS_PORT`, `HEALTH_REDIS_PORT` — stay fixed at `6379` regardless, same as every other module).
 
-> This table tracks only MySQL, Redis, and Meilisearch ports — the three services shared across multiple modules where a collision is otherwise easy to introduce. Mailpit is the one other service with published host ports: SMTP `1025` and web UI `8025`. `ez-php/mail` maps them through `MAILPIT_SMTP_HOST_PORT`/`MAILPIT_API_HOST_PORT` in `modules/mail/docker-compose.yml` (mirroring the `*_HOST_PORT` pattern above, documented in `modules/mail/.env.example`); the root project and the `ez-php/` template each run their own Mailpit on the same defaults (`MAIL_PORT`/`MAIL_WEB_PORT`), so **these three stacks cannot run at the same time** without overriding those variables. It isn't a table column because no module beyond those three runs Mailpit — but a new module adding its own single-use service's ports should likewise parameterize them and document the defaults in its own `.env.example` rather than adding a column here.
+> This table tracks only MySQL, Redis, and Meilisearch ports — the three services shared across multiple modules where a collision is otherwise easy to introduce. Mailpit is the one other service with published host ports: SMTP `1025` and web UI `8025`. `ez-php/mail` maps them through `MAILPIT_SMTP_HOST_PORT`/`MAILPIT_API_HOST_PORT` in `modules/mail/docker-compose.yml` (mirroring the `*_HOST_PORT` pattern above, documented in `modules/mail/.env.example`); the root project and the `ez-php/` template each run their own Mailpit on the same defaults (`MAIL_PORT`/`MAIL_WEB_PORT`), so **these three stacks cannot run at the same time** without overriding those variables. It isn't a table column because no module beyond those three runs Mailpit — but a new module adding its own single-use service's ports should likewise parameterize them and document the defaults in its own `.env.example` rather than adding a column here. Services reached only over the Compose network publish no host port and need no entry at all: Memcached (`memcached:11211` in the root stack and `ez-php/cache`) and the opt-in Elasticsearch/Typesense backends in `modules/search/docker-compose.ci.yml`.
 
 ### 5 — Monorepo scripts
 
-`packages.sh` at the project root is the **central package registry**. Both `push_all.sh` and `update_all.sh` source it — the package list lives in exactly one place.
+`packages.sh` at the project root is the **central package registry**. Every multi-package script sources it — `update_all.sh`, `fullcheck.sh`, `bump_version.sh` and the `git_*_all.sh` scripts (`git_push_all.sh`, `git_pull_all.sh`, `git_tag_all.sh`, `git_delete_all_tags.sh`) — so the package list lives in exactly one place.
 
 When adding a new module, add `"$ROOT/modules/<name>"` to the `PACKAGES` array in `packages.sh` in **alphabetical order** among the other `modules/*` entries (before `framework`, `ez-php`, and the root entry at the end).
 
@@ -272,6 +276,7 @@ src/
 ├── Response.php             — Clone-based HTTP response value object with a string body
 ├── StreamedResponse.php     — Chunk-factory response; download() for resources, sse() for Server-Sent Events
 ├── HeaderValidator.php      — Rejects CR/LF/control characters in header names and values (shared by both responses)
+├── Headers.php              — Case-insensitive set/get/normalize over a response header map (shared by both responses)
 ├── ResponseFactory.php      — Static helpers: json(), redirect(), html(), text(), noContent()
 ├── ResponseEmitter.php      — Sends any ResponseInterface: headers via HeaderSenderInterface, body via OutputInterface
 ├── HeaderSenderInterface.php — Abstraction over header() calls; injectable for testing
@@ -293,6 +298,7 @@ tests/
 ├── Http/StreamedResponseSseTest.php — Covers StreamedResponse::sse(): headers, frames, generic error frame
 ├── Http/ResponseEmitterTest.php    — Covers ResponseEmitter via SpyHeaderSender + RecordingOutput: headers, cookies, chunks, disconnect, stream errors
 ├── Http/HeaderValidatorTest.php    — Covers HeaderValidator: control characters in names and values
+├── Http/HeadersTest.php            — Covers Headers: case-insensitive replace, lookup, duplicate collapse
 ├── Http/NativeOutputTest.php       — Covers NativeOutput: CLI connection state
 ├── Http/Sse/SseEventTest.php       — Covers SseEvent: getters, toString formatting, multi-line data
 ├── Http/ResponseFactoryTest.php    — Covers ResponseFactory: json, redirect, html, text, noContent
@@ -341,7 +347,7 @@ Value object representing an outgoing HTTP response. Headers are applied via `wi
 |---|---|
 | `status(): int` | HTTP status code (default `200`) |
 | `body(): string` | Response body (default `''`) |
-| `withHeader(name, value): self` | Returns a clone with the header added/replaced |
+| `withHeader(name, value): self` | Returns a clone with the header added, or replacing one whose name differs only in case |
 | `headers(): array<string, string>` | All set headers |
 
 **`Response` is not `readonly`** — `withHeader()` uses `clone` internally, which requires mutable properties. This is the only exception to the immutability preference in this package.
@@ -389,7 +395,7 @@ Implements `ResponseInterface` with a `Closure(): iterable<string>` chunk factor
 - **`Request` is `final readonly`** — Immutability is enforced by the language. Route parameters and method overrides are applied by returning new instances via `withParams()` / `withMethod()`, preserving the original object throughout the middleware chain.
 - **`Response` uses clone-based withers** — PHP's `readonly` class feature prevents post-construction mutation, but `header()` addition is a natural part of building a response in middleware. Clone-based withers keep the API clean without requiring a builder pattern.
 - **No PSR-7** — PSR-7 `MessageInterface` brings significant complexity (streams, URI objects, multiple `withXxx` methods). This package intentionally stays simple. If PSR-7 compatibility is required, adapt at the application boundary.
-- **`Request` header keys normalized to lowercase** — HTTP headers are case-insensitive (RFC 7230). The constructor lower-cases every header key once (`array_change_key_case()`), and `Request::header()` lower-cases the lookup key, so every reader — `header()`, `contentType()`, `accepts()`, `ip()` — is case-insensitive however the request was built (by `RequestFactory` from `$_SERVER`, in a test, or by hand). Callers such as `HttpTestCase` therefore pass headers as-is. This normalization is intentionally scoped to `Request` only: `Response::withHeader()`/`headers()` preserve the exact key casing the caller supplies (e.g. `'Content-Type'`), since callers choose that casing deliberately for outbound headers and `ResponseEmitter` sends it as-is — case-insensitive per RFC 7230, so this is not a correctness issue, just an intentional asymmetry between the two classes.
+- **`Request` header keys normalized to lowercase** — HTTP headers are case-insensitive (RFC 7230). The constructor lower-cases every header key once (`array_change_key_case()`), and `Request::header()` lower-cases the lookup key, so every reader — `header()`, `contentType()`, `accepts()`, `ip()` — is case-insensitive however the request was built (by `RequestFactory` from `$_SERVER`, in a test, or by hand). Callers such as `HttpTestCase` therefore pass headers as-is. Responses keep the caller's spelling instead (e.g. `'Content-Type'`), since callers choose that casing deliberately for outbound headers and `ResponseEmitter` sends it as-is — but `withHeader()` on `Response` and `StreamedResponse` (and the `StreamedResponse` constructor) go through `Headers`, which replaces an existing header whose name differs only in case, so one logical header is never emitted twice. Read a response header with `Headers::get($response->headers(), 'Content-Type')`, never `headers()['Content-Type']` — the stored key may be spelled differently.
 - **`RequestFactory` is a static class** — There is no reason to inject it; it reads from PHP globals which are process-global anyway. Static methods make the intent clear and avoid pointless instantiation.
 - **Responses write their own body (emit strategy)** — `ResponseInterface::writeBody(Closure $write)` instead of `body(): string` on the interface. The emitter never branches on the response type, so a new response type needs no emitter change, and a string body and a stream are emitted the same way. Only code that genuinely needs the string (e.g. a toolbar injector) checks `instanceof Response`.
 - **`StreamedResponse` takes a chunk *factory*, not an iterable** — a generator can be iterated once; a factory yields a fresh iterator per `writeBody()`, so tests can read the body and clones made by withers never share a half-consumed generator. `download()` is the documented exception: a resource is single-use.

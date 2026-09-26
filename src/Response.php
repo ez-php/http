@@ -62,6 +62,9 @@ final class Response implements ResponseInterface
     }
 
     /**
+     * Return a clone with the header set. An existing header whose name differs only
+     * in case is replaced, so a header is never emitted twice.
+     *
      * @param string $name
      * @param string $value
      *
@@ -75,7 +78,7 @@ final class Response implements ResponseInterface
         HeaderValidator::assertValid($name, $value);
 
         $clone = clone $this;
-        $clone->headers[$name] = $value;
+        $clone->headers = Headers::set($this->headers, $name, $value);
         return $clone;
     }
 
