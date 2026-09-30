@@ -161,6 +161,38 @@ final class ResponseEmitterTest extends TestCase
     /**
      * @return void
      */
+    public function test_without_body_sends_headers_but_no_body(): void
+    {
+        $sender = new SpyHeaderSender();
+        $output = new RecordingOutput();
+
+        (new ResponseEmitter($sender, $output))->emit((new Response('Hello'))->withHeader('X-A', '1'), withBody: false);
+
+        $this->assertSame(200, $sender->status);
+        $this->assertSame('1', array_change_key_case($sender->headers)['x-a']);
+        $this->assertSame([], $output->written);
+    }
+
+    /**
+     * @return void
+     */
+    public function test_without_body_never_runs_the_stream(): void
+    {
+        $ran = false;
+        $response = new StreamedResponse(function () use (&$ran): iterable {
+            $ran = true;
+
+            return ['a'];
+        });
+
+        (new ResponseEmitter(new SpyHeaderSender(), new RecordingOutput()))->emit($response, withBody: false);
+
+        $this->assertFalse($ran);
+    }
+
+    /**
+     * @return void
+     */
     public function test_client_disconnect_ends_the_stream_quietly(): void
     {
         $output = new RecordingOutput(disconnectAfter: 2);

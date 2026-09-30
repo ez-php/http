@@ -29,6 +29,11 @@ echo $request->method();           // GET, POST, ...
 echo $request->uri();              // /users/42
 echo $request->query('page');      // query string value
 echo $request->input('name');      // POST body value
+
+// Strict typed body values — null unless the value is exactly that type
+$qty   = $request->integer('qty');              // 3 or "3" → 3; "3abc", 3.0, true → null
+$gift  = $request->boolean('gift');             // true/false, "true"/"false"/"1"/"0", 1/0; else null
+$price = $request->decimal('price', scale: 2);  // "19.9" → "19.90"; "19.999" → null (never rounded)
 echo $request->header('accept');   // request header (case-insensitive)
 echo $request->cookie('session');  // cookie value
 echo $request->param('id');        // route parameter (set by router)
@@ -114,8 +119,8 @@ use EzPhp\Http\UploadedFile;
 $file = $request->file('avatar'); // returns UploadedFile|null
 
 if ($file !== null && $file->isValid()) {
-    $file->moveTo('/var/www/uploads/' . $file->clientFilename());
-    echo $file->clientMimeType(); // 'image/jpeg'
+    $file->moveTo('/var/www/uploads/' . basename($file->originalName()));
+    echo $file->mimeType();       // 'image/jpeg' (client-reported, not verified)
     echo $file->size();           // bytes
 }
 ```
@@ -134,7 +139,7 @@ if ($file !== null && $file->isValid()) {
 | `HeaderSenderInterface` | Abstraction over `header()` calls (injectable for testing) |
 | `NativeHeaderSender` | Default `HeaderSenderInterface` implementation using PHP's `header()` |
 | `Cookie` | Immutable value object for `Set-Cookie` attributes; `toHeaderValue()` produces the header string |
-| `UploadedFile` | Wraps a `$_FILES` entry; `isValid()`, `moveTo()`, `clientFilename()`, `clientMimeType()`, `size()` |
+| `UploadedFile` | Wraps a `$_FILES` entry; `isValid()`, `moveTo()`, `originalName()`, `mimeType()`, `size()`, `error()` |
 
 ## License
 

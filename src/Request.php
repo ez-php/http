@@ -96,6 +96,93 @@ final readonly class Request implements RequestInterface
     }
 
     /**
+     * Read a body value as an integer, strictly.
+     *
+     * Returns the int for an int, or for a string of plain decimal digits with an
+     * optional minus sign (no leading zeros, whitespace, `+`, fraction or exponent)
+     * that fits into a PHP int. Anything else — `"12abc"`, `12.0`, `true` — is null,
+     * never a best-effort cast. Missing keys are null too.
+     *
+     * @param string $key
+     *
+     * @return int|null
+     */
+    public function integer(string $key): ?int
+    {
+        $value = $this->input($key);
+
+        if (is_int($value)) {
+            return $value;
+        }
+
+        if (!is_string($value) || preg_match('/^-?(0|[1-9][0-9]*)$/', $value) !== 1) {
+            return null;
+        }
+
+        $int = filter_var($value, FILTER_VALIDATE_INT);
+
+        return is_int($int) ? $int : null; // false on overflow
+    }
+
+    /**
+     * Read a body value as a boolean, strictly.
+     *
+     * Accepts `true`/`false`, the strings `"true"`/`"false"`/`"1"`/`"0"` (form bodies
+     * send strings) and the ints `1`/`0`. Anything else — `"yes"`, `"on"`, `2` — is null.
+     *
+     * @param string $key
+     *
+     * @return bool|null
+     */
+    public function boolean(string $key): ?bool
+    {
+        return match ($this->input($key)) {
+            true, 'true', '1', 1 => true,
+            false, 'false', '0', 0 => false,
+            default => null,
+        };
+    }
+
+    /**
+     * Read a body value as a decimal number, returned as a normalized string.
+     *
+     * Accepts an int, a float, or a string of the form `-?digits(.digits)?` (no
+     * exponent, comma or leading dot). With `$scale`, a value with more fraction
+     * digits than `$scale` is null — it is never rounded — and the result is padded
+     * to exactly `$scale` digits (`"12.5"` → `"12.50"`). A string is returned so
+     * money-like values never pass through float rounding.
+     *
+     * @param string   $key
+     * @param int|null $scale Maximum (and output) number of fraction digits; null keeps them as given.
+     *
+     * @return string|null
+     */
+    public function decimal(string $key, ?int $scale = null): ?string
+    {
+        $value = $this->input($key);
+
+        if (is_int($value) || is_float($value)) {
+            $value = (string) $value;
+        }
+
+        if (!is_string($value) || preg_match('/^(-?[0-9]+)(?:\.([0-9]+))?$/', $value, $m) !== 1) {
+            return null;
+        }
+
+        $fraction = $m[2] ?? '';
+
+        if ($scale === null) {
+            return $value;
+        }
+
+        if (strlen($fraction) > $scale) {
+            return null;
+        }
+
+        return $scale === 0 ? $m[1] : $m[1] . '.' . str_pad($fraction, $scale, '0');
+    }
+
+    /**
      * Return all query and body parameters merged into a single array.
      *
      * When Content-Type is application/json and the body array is empty, the

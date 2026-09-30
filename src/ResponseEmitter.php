@@ -42,12 +42,14 @@ final readonly class ResponseEmitter
     /**
      * @param ResponseInterface                $response
      * @param (\Closure(Throwable): void)|null $onStreamError Receives failures raised while the body is written.
+     * @param bool                             $withBody      False sends status, headers and cookies only
+     *                                                        (a HEAD response); the body is never produced.
      *
      * @throws Throwable When the body fails and no $onStreamError is given.
      *
      * @return void
      */
-    public function emit(ResponseInterface $response, ?\Closure $onStreamError = null): void
+    public function emit(ResponseInterface $response, ?\Closure $onStreamError = null, bool $withBody = true): void
     {
         $this->headerSender->sendStatus($response->status());
 
@@ -57,6 +59,10 @@ final readonly class ResponseEmitter
 
         foreach ($response->cookies() as $cookie) {
             $this->headerSender->sendCookie($cookie->toHeaderValue());
+        }
+
+        if (!$withBody) {
+            return;
         }
 
         $this->output->ignoreUserAbort();

@@ -28,10 +28,11 @@ docker compose exec app composer full
 Executes in order:
 1. `sync_guidelines.php --check` — fails if any `CLAUDE.md` has drifted from this file
 2. `check_test_classes.php` — fails on a duplicate test class name (all packages share the `Tests\` namespace, so a collision is a fatal error in the aggregated run, not a test failure)
-3. `phpstan analyse` — static analysis, level 9, config: `phpstan.neon`
-4. `php-cs-fixer fix` — auto-fixes style (`@PSR12` + `@PHP83Migration` + strict rules)
+3. `check_module_deps.php` — fails when a package's code imports an ez-php package its `composer.json` does not declare (module `src`: `require`/`suggest`; tests: `require`/`require-dev` and their dependencies), or requires one it never uses
+4. `phpstan analyse` — static analysis, level 9, config: `phpstan.neon`
+5. `php-cs-fixer fix` — auto-fixes style (`@PSR12` + `@PHP83Migration` + strict rules)
    *(Note: `@PHP85Migration` does not exist yet in php-cs-fixer; `@PHP83Migration` is the highest available and is used intentionally even though the project targets PHP 8.5)*
-5. `phpunit` — all tests with coverage
+6. `phpunit` — all tests with coverage
 
 Individual commands when needed:
 ```
@@ -40,6 +41,7 @@ composer cs                  # CS Fixer only
 composer test                # PHPUnit only
 composer guidelines:check    # CLAUDE.md drift only
 composer test-classes:check  # duplicate test class names only
+composer module-deps:check   # undeclared / unused ez-php package dependencies only
 ```
 
 **PHPStan:** never suppress with `@phpstan-ignore-line` — always fix the root cause.
@@ -198,20 +200,22 @@ vendor/bin/docker-init
 
 This copies `Dockerfile`, `docker-compose.yml`, `.env.example`, `start.sh`, and `docker/` into the module, replacing `{{MODULE_NAME}}` placeholders. Existing files are never overwritten.
 
-Pass `--services` to merge MySQL/Redis/Meilisearch service definitions directly into `docker-compose.yml` and uncomment the matching sections in `.env.example`, instead of adapting them by hand afterward:
+Pass `--services` to merge MySQL/Redis/Meilisearch/Memcached/Mailpit service definitions directly into `docker-compose.yml` and uncomment the matching sections in `.env.example`, instead of adapting them by hand afterward:
 
 ```
 vendor/bin/docker-init --services=mysql
 vendor/bin/docker-init --services=redis
 vendor/bin/docker-init --services=meilisearch
 vendor/bin/docker-init --services=mysql,redis
+vendor/bin/docker-init --services=memcached,mailpit
 ```
 
-Pass `--extensions` to merge PHP extension install blocks (apt packages plus `docker-php-ext-install`/`pecl` lines) directly into `docker/app/Dockerfile`, instead of hand-editing it afterward — supported extensions: `bcmath`, `gmp`, `gd`, `imagick`:
+Pass `--extensions` to merge PHP extension install blocks (apt packages plus `docker-php-ext-install`/`pecl` lines) directly into `docker/app/Dockerfile`, instead of hand-editing it afterward — supported extensions: `bcmath`, `gmp`, `gd`, `imagick`, `memcached`, `apcu` (with `apc.enable_cli=1`):
 
 ```
 vendor/bin/docker-init --extensions=gmp,bcmath
 vendor/bin/docker-init --extensions=gd,imagick
+vendor/bin/docker-init --extensions=memcached,apcu
 ```
 
 When run from a module directory inside this monorepo, any requested extension not already present is also merged into the shared root `docker/app/Dockerfile` — the container `composer full` at the root actually runs against, distinct from the module's own standalone image.
@@ -287,7 +291,7 @@ src/
 ├── Sse/
 │   └── SseEvent.php         — Single Server-Sent Events frame: data, event, id, retry + toString()
 ├── Cookie.php               — Immutable value object for Set-Cookie attributes; toHeaderValue()
-└── UploadedFile.php         — Wraps a $_FILES entry: isValid(), moveTo(), clientFilename(), clientMimeType(), size()
+└── UploadedFile.php         — Wraps a $_FILES entry: isValid(), moveTo(), originalName(), mimeType(), size(), error()
 
 tests/
 ├── TestCase.php                    — Base PHPUnit test case
@@ -320,6 +324,9 @@ tests/
 | `uri()` | `string` | Full request URI including query string |
 | `query(key, default)` | `mixed` | `$_GET` equivalent |
 | `input(key, default)` | `mixed` | `$_POST` / parsed body equivalent |
+| `integer(key)` | `?int` | Body value when it is an int or a plain digit string (optional `-`, no leading zeros) within int range; otherwise null — no casting of `"12abc"`/`12.0` |
+| `boolean(key)` | `?bool` | Body value when it is a bool, `"true"`/`"false"`/`"1"`/`"0"` or `1`/`0`; otherwise null |
+| `decimal(key, scale)` | `?string` | Body value (int, float or `-?digits(.digits)?` string) as a string; with `scale`, more fraction digits → null (never rounded), fewer → padded |
 | `all()` | `array<string, mixed>` | Query + body merged; body wins on collision |
 | `has(key)` | `bool` | Key present in query **or** body (`array_key_exists`; null counts as present) |
 | `hasQuery(key)` | `bool` | Key present in query string only |
@@ -380,7 +387,7 @@ Static factory. Single responsibility: build a `Request` from PHP superglobals.
 
 Sends any `ResponseInterface` to the client: status, headers and cookies through `HeaderSenderInterface`, then `ignore_user_abort(true)` and `$response->writeBody($write)` through `OutputInterface`. `$write` flushes each chunk and throws `ClientDisconnectedException` once the client is gone, which ends the body quietly.
 
-`emit(ResponseInterface $response, ?Closure $onStreamError = null)` — an exception raised while the body is written happens after headers were sent, so it cannot become an error page; it is passed to `$onStreamError` (the framework reports it) or rethrown when no callback is given.
+`emit(ResponseInterface $response, ?Closure $onStreamError = null, bool $withBody = true)` — an exception raised while the body is written happens after headers were sent, so it cannot become an error page; it is passed to `$onStreamError` (the framework reports it) or rethrown when no callback is given. `withBody: false` sends status, headers and cookies only and never calls `writeBody()` — the framework passes it for `HEAD` requests (the emitter has no request, so the caller decides).
 
 ---
 
@@ -392,6 +399,7 @@ Implements `ResponseInterface` with a `Closure(): iterable<string>` chunk factor
 
 ## Design Decisions and Constraints
 
+- **Typed accessors live on `Request`, not on `RequestInterface`.** `integer()`/`boolean()`/`decimal()` are additive conveniences; adding them to the interface would break every other `RequestInterface` implementation. They read the body like `input()` (not the query string), are strict on purpose (null instead of a best-effort cast, so `"12abc"` can't become 12), and stop at scalar parsing — rules and error messages stay in `ez-php/validation`. `decimal()` returns a string so a money value never passes through float rounding.
 - **`Request` is `final readonly`** — Immutability is enforced by the language. Route parameters and method overrides are applied by returning new instances via `withParams()` / `withMethod()`, preserving the original object throughout the middleware chain.
 - **`Response` uses clone-based withers** — PHP's `readonly` class feature prevents post-construction mutation, but `header()` addition is a natural part of building a response in middleware. Clone-based withers keep the API clean without requiring a builder pattern.
 - **No PSR-7** — PSR-7 `MessageInterface` brings significant complexity (streams, URI objects, multiple `withXxx` methods). This package intentionally stays simple. If PSR-7 compatibility is required, adapt at the application boundary.
