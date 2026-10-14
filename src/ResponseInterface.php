@@ -65,6 +65,7 @@ interface ResponseInterface
      * @param string $domain
      * @param bool   $secure
      * @param bool   $httpOnly
+     * @param string $sameSite SameSite attribute: Lax, Strict or None (None requires $secure); empty omits it.
      *
      * @return static
      */
@@ -76,6 +77,7 @@ interface ResponseInterface
         string $domain = '',
         bool $secure = false,
         bool $httpOnly = false,
+        string $sameSite = '',
     ): static;
 
     /**

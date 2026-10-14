@@ -101,14 +101,17 @@ use EzPhp\Http\Cookie;
 $cookie = new Cookie(
     name:     'session',
     value:    'abc123',
-    expires:  time() + 3600,
+    ttl:      3600,      // Max-Age; 0 = session cookie
     path:     '/',
     secure:   true,
     httpOnly: true,
-    sameSite: 'Lax',
+    sameSite: 'Lax',     // Lax, Strict or None (None requires secure); '' omits it
 );
 
-$response = $response->withHeader('Set-Cookie', $cookie->toHeaderValue());
+$cookie->toHeaderValue(); // session=abc123; Max-Age=3600; Path=/; Secure; HttpOnly; SameSite=Lax
+
+// Usually you queue it on the response instead; ResponseEmitter sends it:
+$response = $response->withCookie('session', 'abc123', 3600, secure: true, httpOnly: true, sameSite: 'Lax');
 ```
 
 ### UploadedFile

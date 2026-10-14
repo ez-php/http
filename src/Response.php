@@ -103,6 +103,7 @@ final class Response implements ResponseInterface
      * @param string $domain   Domain scope (empty = omit attribute).
      * @param bool   $secure   Restrict to HTTPS.
      * @param bool   $httpOnly Prevent JavaScript access.
+     * @param string $sameSite SameSite attribute: Lax, Strict or None (None requires $secure); empty omits it.
      *
      * @return Response
      */
@@ -114,9 +115,10 @@ final class Response implements ResponseInterface
         string $domain = '',
         bool $secure = false,
         bool $httpOnly = false,
+        string $sameSite = '',
     ): Response {
         $clone = clone $this;
-        $clone->cookies[] = new Cookie($name, $value, $ttl, $path, $domain, $secure, $httpOnly);
+        $clone->cookies[] = new Cookie($name, $value, $ttl, $path, $domain, $secure, $httpOnly, $sameSite);
         return $clone;
     }
 

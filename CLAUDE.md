@@ -290,7 +290,7 @@ src/
 ├── ClientDisconnectedException.php — Thrown by the emitter when the client is gone; never reported
 ├── Sse/
 │   └── SseEvent.php         — Single Server-Sent Events frame: data, event, id, retry + toString()
-├── Cookie.php               — Immutable value object for Set-Cookie attributes; toHeaderValue()
+├── Cookie.php               — Immutable value object for Set-Cookie attributes (incl. validated SameSite); toHeaderValue()
 └── UploadedFile.php         — Wraps a $_FILES entry: isValid(), moveTo(), originalName(), mimeType(), size(), error()
 
 tests/
@@ -306,7 +306,7 @@ tests/
 ├── Http/NativeOutputTest.php       — Covers NativeOutput: CLI connection state
 ├── Http/Sse/SseEventTest.php       — Covers SseEvent: getters, toString formatting, multi-line data
 ├── Http/ResponseFactoryTest.php    — Covers ResponseFactory: json, redirect, html, text, noContent
-├── Http/CookieTest.php             — Covers Cookie: all attributes, toHeaderValue() format
+├── Http/CookieTest.php             — Covers Cookie: all attributes, SameSite normalization/validation, toHeaderValue() format
 └── Http/UploadedFileTest.php       — Covers UploadedFile: isValid(), moveTo(), accessors
 ```
 
@@ -410,6 +410,7 @@ Implements `ResponseInterface` with a `Closure(): iterable<string>` chunk factor
 - **Headers go out before the first chunk** — every exception inside a chunk generator is therefore a mid-stream failure, even one before the first chunk. Checks belong in the controller before it returns the `StreamedResponse`.
 - **Body output behind `OutputInterface`** — mirrors `HeaderSenderInterface`, so flushing and client disconnects are testable without an HTTP context.
 - **`ResponseEmitter` is a regular class** — Unlike `RequestFactory`, it may need to be replaced in tests or extended (e.g. streaming emitter). Keeping it instantiable allows binding a custom emitter in the container.
+- **`SameSite` is a trailing optional `withCookie()` parameter, empty by default** — `''` omits the attribute, so every existing caller keeps its exact `Set-Cookie` output; callers opt in per cookie (the framework's `XsrfCookieMiddleware` and maintenance bypass cookie send `Lax`). `Cookie` normalizes the value case-insensitively and rejects anything but `Lax`/`Strict`/`None`, and `None` without `Secure` (browsers drop such cookies silently).
 - **No JSON/redirect helpers** — `Response::json()`, `Response::redirect()`, etc. are application-layer conveniences. They do not belong in the value object itself.
 - **Zero framework dependencies** — This package must remain usable standalone. Do not import Application, Container, Router, or any other framework class.
 

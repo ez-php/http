@@ -209,6 +209,7 @@ final class StreamedResponse implements ResponseInterface
      * @param string $domain
      * @param bool   $secure
      * @param bool   $httpOnly
+     * @param string $sameSite SameSite attribute: Lax, Strict or None (None requires $secure); empty omits it.
      *
      * @return static
      */
@@ -220,9 +221,10 @@ final class StreamedResponse implements ResponseInterface
         string $domain = '',
         bool $secure = false,
         bool $httpOnly = false,
+        string $sameSite = '',
     ): static {
         $clone = clone $this;
-        $clone->cookies[] = new Cookie($name, $value, $ttl, $path, $domain, $secure, $httpOnly);
+        $clone->cookies[] = new Cookie($name, $value, $ttl, $path, $domain, $secure, $httpOnly, $sameSite);
 
         return $clone;
     }

@@ -15,6 +15,11 @@ namespace EzPhp\Http;
 final readonly class Cookie
 {
     /**
+     * Normalized SameSite attribute (`Lax`, `Strict`, `None`) or empty when omitted.
+     */
+    private string $sameSite;
+
+    /**
      * Cookie Constructor
      *
      * @param string $name     Cookie name.
@@ -24,6 +29,11 @@ final readonly class Cookie
      * @param string $domain   Domain scope. Empty string omits the attribute.
      * @param bool   $secure   Restrict to HTTPS connections.
      * @param bool   $httpOnly Prevent JavaScript access.
+     * @param string $sameSite SameSite attribute: `Lax`, `Strict` or `None` (case-insensitive);
+     *                         empty omits it (browsers then default to Lax). `None` requires $secure.
+     *
+     * @throws \InvalidArgumentException When $sameSite is not one of the allowed values,
+     *                                   or is `None` on a non-secure cookie.
      */
     public function __construct(
         private string $name,
@@ -33,7 +43,9 @@ final readonly class Cookie
         private string $domain = '',
         private bool $secure = false,
         private bool $httpOnly = false,
+        string $sameSite = '',
     ) {
+        $this->sameSite = self::normalizeSameSite($sameSite, $secure);
     }
 
     /**
@@ -93,6 +105,16 @@ final readonly class Cookie
     }
 
     /**
+     * SameSite attribute (`Lax`, `Strict`, `None`), or an empty string when omitted.
+     *
+     * @return string
+     */
+    public function sameSite(): string
+    {
+        return $this->sameSite;
+    }
+
+    /**
      * Serialize this cookie to a Set-Cookie header value string.
      *
      * Name and value are URL-encoded. Max-Age is emitted only when ttl > 0.
@@ -130,6 +152,41 @@ final readonly class Cookie
             $parts[] = 'HttpOnly';
         }
 
+        if ($this->sameSite !== '') {
+            $parts[] = 'SameSite=' . $this->sameSite;
+        }
+
         return implode('; ', $parts);
+    }
+
+    /**
+     * @param string $sameSite
+     * @param bool   $secure
+     *
+     * @throws \InvalidArgumentException
+     *
+     * @return string
+     */
+    private static function normalizeSameSite(string $sameSite, bool $secure): string
+    {
+        if ($sameSite === '') {
+            return '';
+        }
+
+        $normalized = match (strtolower($sameSite)) {
+            'lax' => 'Lax',
+            'strict' => 'Strict',
+            'none' => 'None',
+            default => throw new \InvalidArgumentException(
+                "Invalid SameSite value '{$sameSite}': expected Lax, Strict or None."
+            ),
+        };
+
+        // Browsers reject SameSite=None without Secure.
+        if ($normalized === 'None' && !$secure) {
+            throw new \InvalidArgumentException('SameSite=None requires a secure cookie.');
+        }
+
+        return $normalized;
     }
 }

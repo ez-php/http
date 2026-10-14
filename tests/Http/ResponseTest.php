@@ -175,6 +175,17 @@ final class ResponseTest extends TestCase
         $this->assertSame('example.com', $cookie->domain());
         $this->assertTrue($cookie->isSecure());
         $this->assertTrue($cookie->isHttpOnly());
+        $this->assertSame('', $cookie->sameSite());
+    }
+
+    /**
+     * @return void
+     */
+    public function test_with_cookie_passes_same_site(): void
+    {
+        $response = (new Response())->withCookie('tok', 'val', sameSite: 'Strict');
+
+        $this->assertSame('Strict', $response->cookies()[0]->sameSite());
     }
 
     /**

@@ -170,4 +170,55 @@ final class CookieTest extends TestCase
         $this->assertStringContainsString('Secure', $header);
         $this->assertStringContainsString('HttpOnly', $header);
     }
+
+    /**
+     * @return void
+     */
+    public function test_same_site_is_omitted_by_default(): void
+    {
+        $cookie = new Cookie('a', 'b');
+
+        $this->assertSame('', $cookie->sameSite());
+        $this->assertStringNotContainsString('SameSite', $cookie->toHeaderValue());
+    }
+
+    /**
+     * @return void
+     */
+    public function test_same_site_is_emitted_and_normalized(): void
+    {
+        $cookie = new Cookie('a', 'b', sameSite: 'lax');
+
+        $this->assertSame('Lax', $cookie->sameSite());
+        $this->assertStringEndsWith('; SameSite=Lax', $cookie->toHeaderValue());
+        $this->assertStringContainsString(
+            'SameSite=Strict',
+            (new Cookie('a', 'b', sameSite: 'Strict'))->toHeaderValue(),
+        );
+    }
+
+    /**
+     * @return void
+     */
+    public function test_same_site_none_requires_secure(): void
+    {
+        $this->assertStringContainsString(
+            'SameSite=None',
+            (new Cookie('a', 'b', secure: true, sameSite: 'None'))->toHeaderValue(),
+        );
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        new Cookie('a', 'b', sameSite: 'None');
+    }
+
+    /**
+     * @return void
+     */
+    public function test_same_site_rejects_unknown_values(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        new Cookie('a', 'b', sameSite: 'Sometimes');
+    }
 }

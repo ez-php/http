@@ -150,6 +150,16 @@ final class StreamedResponseTest extends TestCase
     /**
      * @return void
      */
+    public function test_with_cookie_passes_same_site(): void
+    {
+        $response = (new StreamedResponse(fn (): iterable => []))->withCookie('session', 'abc', sameSite: 'Lax');
+
+        $this->assertSame('Lax', $response->cookies()[0]->sameSite());
+    }
+
+    /**
+     * @return void
+     */
     public function test_on_error_frames_are_written_then_the_original_exception_is_rethrown(): void
     {
         $failure = new RuntimeException('boom');
