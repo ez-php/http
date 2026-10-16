@@ -24,7 +24,8 @@ final readonly class Cookie
      *
      * @param string $name     Cookie name.
      * @param string $value    Cookie value (will be URL-encoded in the header).
-     * @param int    $ttl      Max-Age in seconds. 0 means a session cookie (no Max-Age sent).
+     * @param int    $ttl      Max-Age in seconds. 0 means a session cookie (no Max-Age sent);
+     *                          a negative value deletes the cookie (`Max-Age=0`).
      * @param string $path     Path scope. Defaults to '/'.
      * @param string $domain   Domain scope. Empty string omits the attribute.
      * @param bool   $secure   Restrict to HTTPS connections.
@@ -132,6 +133,9 @@ final readonly class Cookie
 
         if ($this->ttl > 0) {
             $parts[] = 'Max-Age=' . $this->ttl;
+        } elseif ($this->ttl < 0) {
+            // Delete: the browser drops a cookie whose Max-Age is zero or less.
+            $parts[] = 'Max-Age=0';
         }
 
         if ($this->path !== '') {

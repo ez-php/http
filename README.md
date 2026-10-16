@@ -101,7 +101,7 @@ use EzPhp\Http\Cookie;
 $cookie = new Cookie(
     name:     'session',
     value:    'abc123',
-    ttl:      3600,      // Max-Age; 0 = session cookie
+    ttl:      3600,      // Max-Age; 0 = session cookie, negative = delete (Max-Age=0)
     path:     '/',
     secure:   true,
     httpOnly: true,
@@ -112,6 +112,13 @@ $cookie->toHeaderValue(); // session=abc123; Max-Age=3600; Path=/; Secure; HttpO
 
 // Usually you queue it on the response instead; ResponseEmitter sends it:
 $response = $response->withCookie('session', 'abc123', 3600, secure: true, httpOnly: true, sameSite: 'Lax');
+```
+
+To delete a cookie, send it again with a negative TTL (and the same path/domain it was set with):
+the header carries `Max-Age=0` and the browser drops it.
+
+```php
+$response = $response->withCookie('remember', '', -1, secure: true, httpOnly: true);
 ```
 
 ### UploadedFile

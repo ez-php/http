@@ -66,6 +66,17 @@ final class CookieTest extends TestCase
     /**
      * @return void
      */
+    public function test_negative_ttl_expires_the_cookie_immediately(): void
+    {
+        $cookie = new Cookie('remember', '', -1, secure: true, httpOnly: true);
+
+        $this->assertStringContainsString('Max-Age=0', $cookie->toHeaderValue());
+        $this->assertSame('remember=; Max-Age=0; Path=/; Secure; HttpOnly', $cookie->toHeaderValue());
+    }
+
+    /**
+     * @return void
+     */
     public function test_to_header_value_includes_max_age_when_ttl_positive(): void
     {
         $cookie = new Cookie('a', 'b', 3600);

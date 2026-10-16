@@ -60,7 +60,7 @@ interface ResponseInterface
      *
      * @param string $name
      * @param string $value
-     * @param int    $ttl
+     * @param int    $ttl      Max-Age in seconds; 0 = session cookie, negative = delete (Max-Age=0)
      * @param string $path
      * @param string $domain
      * @param bool   $secure

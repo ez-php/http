@@ -98,7 +98,7 @@ final class Response implements ResponseInterface
      *
      * @param string $name     Cookie name.
      * @param string $value    Cookie value.
-     * @param int    $ttl      Max-Age in seconds. 0 = session cookie.
+     * @param int    $ttl      Max-Age in seconds. 0 = session cookie; negative = delete the cookie (Max-Age=0).
      * @param string $path     Path scope (default '/').
      * @param string $domain   Domain scope (empty = omit attribute).
      * @param bool   $secure   Restrict to HTTPS.

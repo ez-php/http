@@ -198,7 +198,7 @@ Run from the new module root (requires `"ez-php/docker": "^2.0"` in `require-dev
 vendor/bin/docker-init
 ```
 
-This copies `Dockerfile`, `docker-compose.yml`, `.env.example`, `start.sh`, and `docker/` into the module, replacing `{{MODULE_NAME}}` placeholders. Existing files are never overwritten.
+This copies `Dockerfile`, `docker-compose.yml`, `.env.example`, `start.sh`, and `docker/` into the module, replacing `{{MODULE_NAME}}` placeholders (`docker/db/`, the MySQL init script, only with `--services=mysql`). Existing files are never overwritten.
 
 Pass `--services` to merge MySQL/Redis/Meilisearch/Memcached/Mailpit service definitions directly into `docker-compose.yml` and uncomment the matching sections in `.env.example`, instead of adapting them by hand afterward:
 
@@ -243,7 +243,8 @@ After scaffolding:
 | `ez-php/feature-flags` | — | 6385 (`REDIS_HOST_PORT`) | — |
 | `ez-php/scheduler` | — | 6386 (`REDIS_HOST_PORT`) | — |
 | `ez-php/session` | — | 6387 (`REDIS_HOST_PORT`) | — |
-| **next free** | **3312** | **6388** | **7702** |
+| `ez-php/metrics` | — | 6388 (`REDIS_HOST_PORT`) | — |
+| **next free** | **3312** | **6389** | **7702** |
 
 Only set a port for services the module actually uses. Modules without external services need no port config.
 
@@ -290,7 +291,7 @@ src/
 ├── ClientDisconnectedException.php — Thrown by the emitter when the client is gone; never reported
 ├── Sse/
 │   └── SseEvent.php         — Single Server-Sent Events frame: data, event, id, retry + toString()
-├── Cookie.php               — Immutable value object for Set-Cookie attributes (incl. validated SameSite); toHeaderValue()
+├── Cookie.php               — Immutable value object for Set-Cookie attributes (incl. validated SameSite, negative ttl = delete); toHeaderValue()
 └── UploadedFile.php         — Wraps a $_FILES entry: isValid(), moveTo(), originalName(), mimeType(), size(), error()
 
 tests/
@@ -306,7 +307,7 @@ tests/
 ├── Http/NativeOutputTest.php       — Covers NativeOutput: CLI connection state
 ├── Http/Sse/SseEventTest.php       — Covers SseEvent: getters, toString formatting, multi-line data
 ├── Http/ResponseFactoryTest.php    — Covers ResponseFactory: json, redirect, html, text, noContent
-├── Http/CookieTest.php             — Covers Cookie: all attributes, SameSite normalization/validation, toHeaderValue() format
+├── Http/CookieTest.php             — Covers Cookie: all attributes, SameSite normalization/validation, negative-ttl deletion, toHeaderValue() format
 └── Http/UploadedFileTest.php       — Covers UploadedFile: isValid(), moveTo(), accessors
 ```
 
@@ -410,6 +411,7 @@ Implements `ResponseInterface` with a `Closure(): iterable<string>` chunk factor
 - **Headers go out before the first chunk** — every exception inside a chunk generator is therefore a mid-stream failure, even one before the first chunk. Checks belong in the controller before it returns the `StreamedResponse`.
 - **Body output behind `OutputInterface`** — mirrors `HeaderSenderInterface`, so flushing and client disconnects are testable without an HTTP context.
 - **`ResponseEmitter` is a regular class** — Unlike `RequestFactory`, it may need to be replaced in tests or extended (e.g. streaming emitter). Keeping it instantiable allows binding a custom emitter in the container.
+- **A negative `ttl` deletes the cookie (`Max-Age=0`); `0` stays a session cookie.** There was no way to clear a cookie (logout, a revoked maintenance bypass, a stale `XSRF-TOKEN`): `ttl <= 0` emitted no `Max-Age`, which keeps the cookie for the browser session. Giving negative values that meaning reused the existing parameter instead of adding a `withoutCookie()` wither to `ResponseInterface` (a breaking change for its implementers), and no caller passed a negative TTL before.
 - **`SameSite` is a trailing optional `withCookie()` parameter, empty by default** — `''` omits the attribute, so every existing caller keeps its exact `Set-Cookie` output; callers opt in per cookie (the framework's `XsrfCookieMiddleware` and maintenance bypass cookie send `Lax`). `Cookie` normalizes the value case-insensitively and rejects anything but `Lax`/`Strict`/`None`, and `None` without `Secure` (browsers drop such cookies silently).
 - **No JSON/redirect helpers** — `Response::json()`, `Response::redirect()`, etc. are application-layer conveniences. They do not belong in the value object itself.
 - **Zero framework dependencies** — This package must remain usable standalone. Do not import Application, Container, Router, or any other framework class.
