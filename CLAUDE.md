@@ -436,4 +436,4 @@ Implements `ResponseInterface` with a `Closure(): iterable<string>` chunk factor
 | CORS headers | `ez-php/framework` (`CorsMiddleware`) |
 | HTTP client (outgoing requests) | `ez-php/http-client` |
 | PSR-7 / PSR-15 compatibility | Application-level adapter if needed |
-| Multipart / file upload handling | Application layer |
+| Upload processing beyond `UploadedFile`/`Request::file()` (storage, image processing, chunked/resumable uploads) | Application layer, `ez-php/storage`, `ez-php/media` |
