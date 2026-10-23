@@ -126,4 +126,12 @@ final class UploadedFileTest extends TestCase
 
         $file->moveTo('/tmp/dest_test.txt');
     }
+
+    /**
+     * @return void
+     */
+    public function test_tmp_name_returns_server_path(): void
+    {
+        $this->assertSame('/tmp/phpXXXXXX', $this->makeValidFile()->tmpName());
+    }
 }

@@ -279,6 +279,82 @@ final readonly class Request implements RequestInterface
         return $this->rawBody;
     }
 
+    // ── Bulk accessors ────────────────────────────────────────────────────────
+    // Whole-map reads for code that must copy a request as a whole (e.g. the
+    // PSR-7 conversion in ez-php/psr-bridge); single values go through the
+    // per-key getters above.
+
+    /**
+     * All request headers, keyed by lower-cased name.
+     *
+     * @return array<string, mixed>
+     */
+    public function headers(): array
+    {
+        return $this->headers;
+    }
+
+    /**
+     * All query-string parameters.
+     *
+     * @return array<string, mixed>
+     */
+    public function queryParams(): array
+    {
+        return $this->query;
+    }
+
+    /**
+     * The parsed body — the explicit body array, or the decoded JSON body when
+     * that is empty and the request is JSON (the same source input() reads).
+     *
+     * @return array<string, mixed>
+     */
+    public function bodyParams(): array
+    {
+        return $this->parsedBody();
+    }
+
+    /**
+     * All request cookies.
+     *
+     * @return array<string, mixed>
+     */
+    public function cookies(): array
+    {
+        return $this->cookies;
+    }
+
+    /**
+     * All server parameters ($_SERVER-style).
+     *
+     * @return array<string, mixed>
+     */
+    public function serverParams(): array
+    {
+        return $this->server;
+    }
+
+    /**
+     * All route parameters.
+     *
+     * @return array<string, mixed>
+     */
+    public function params(): array
+    {
+        return $this->params;
+    }
+
+    /**
+     * All uploaded files, keyed by form field name.
+     *
+     * @return array<string, UploadedFile>
+     */
+    public function files(): array
+    {
+        return $this->files;
+    }
+
     /**
      * Resolve the client IP address.
      *

@@ -151,9 +151,9 @@ php make_module.php <name> --description="..." --services=mysql,redis --extensio
 
 `<name>` is the kebab-case package name; the namespace is derived as
 `EzPhp\<PascalCase>` (each `-`-separated word upper-cased) unless `--namespace=`
-overrides it. Existing exceptions the guess gets wrong: `bignum` → `BigNum`,
-`dataloader` → `DataLoader`, `dotenv` → `Env`, `graphql` → `GraphQL`, `graphql-subscriptions` → `GraphQLSubscriptions`, `oauth` → `OAuth`,
-`opcache` → `OPCache`, `openapi` → `OpenApi`, `swagger-ui` → `SwaggerUI`, `webauthn` → `WebAuthn` and
+overrides it. Existing exceptions the guess gets wrong: `asyncapi` → `AsyncApi`,
+`bignum` → `BigNum`, `dataloader` → `DataLoader`, `dotenv` → `Env`, `graphql` → `GraphQL`, `graphql-subscriptions` → `GraphQLSubscriptions`, `oauth` → `OAuth`,
+`opcache` → `OPCache`, `openapi` → `OpenApi`, `qrcode` → `QrCode`, `swagger-ui` → `SwaggerUI`, `webauthn` → `WebAuthn` and
 `websocket` → `WebSocket`; `websocket-client` → `WebsocketClient`, `websocket-tls` → `WebsocketTls`,
 `webauthn-metadata` → `WebauthnMetadata` and `metrics-statsd` → `MetricsStatsd` are
 intentional lower-case-word namespaces, and `testing-application` shares `EzPhp\Testing\`
@@ -293,7 +293,7 @@ src/
 ├── Sse/
 │   └── SseEvent.php         — Single Server-Sent Events frame: data, event, id, retry + toString()
 ├── Cookie.php               — Immutable value object for Set-Cookie attributes (incl. validated SameSite, negative ttl = delete); toHeaderValue()
-└── UploadedFile.php         — Wraps a $_FILES entry: isValid(), moveTo(), originalName(), mimeType(), size(), error()
+└── UploadedFile.php         — Wraps a $_FILES entry: isValid(), moveTo(), originalName(), mimeType(), size(), error(), tmpName()
 
 tests/
 ├── TestCase.php                    — Base PHPUnit test case
@@ -337,6 +337,7 @@ tests/
 | `cookie(key, default)` | `mixed` | `$_COOKIE` equivalent |
 | `server(key, default)` | `mixed` | `$_SERVER` equivalent |
 | `rawBody()` | `string` | Raw `php://input` content |
+| `headers()` / `queryParams()` / `bodyParams()` / `cookies()` / `serverParams()` / `params()` / `files()` | `array` | Bulk accessors — whole maps for code that copies a request as a whole (e.g. `ez-php/psr-bridge`'s PSR-7 conversion). `bodyParams()` is the parsed body `input()` reads (explicit body, else decoded JSON). Concrete `Request` only — `RequestInterface` is unchanged, so other implementations aren't broken |
 | `param(key, default)` | `mixed` | URL route parameters (e.g. `{id}`) set by the router |
 | `ip(trustedProxies[])` | `string` | Client IP; reads `X-Forwarded-For` only when `REMOTE_ADDR` is a trusted proxy, walking the chain from the right and returning the first untrusted hop (the leftmost entry is client-controlled) |
 
@@ -404,7 +405,7 @@ Implements `ResponseInterface` with a `Closure(): iterable<string>` chunk factor
 - **Typed accessors live on `Request`, not on `RequestInterface`.** `integer()`/`boolean()`/`decimal()` are additive conveniences; adding them to the interface would break every other `RequestInterface` implementation. They read the body like `input()` (not the query string), are strict on purpose (null instead of a best-effort cast, so `"12abc"` can't become 12), and stop at scalar parsing — rules and error messages stay in `ez-php/validation`. `decimal()` returns a string so a money value never passes through float rounding.
 - **`Request` is `final readonly`** — Immutability is enforced by the language. Route parameters and method overrides are applied by returning new instances via `withParams()` / `withMethod()`, preserving the original object throughout the middleware chain.
 - **`Response` uses clone-based withers** — PHP's `readonly` class feature prevents post-construction mutation, but `header()` addition is a natural part of building a response in middleware. Clone-based withers keep the API clean without requiring a builder pattern.
-- **No PSR-7** — PSR-7 `MessageInterface` brings significant complexity (streams, URI objects, multiple `withXxx` methods). This package intentionally stays simple. If PSR-7 compatibility is required, adapt at the application boundary.
+- **No PSR-7** — PSR-7 `MessageInterface` brings significant complexity (streams, URI objects, multiple `withXxx` methods). This package intentionally stays simple. PSR-7/PSR-15 interop lives in `ez-php/psr-bridge`, which converts at the boundary using the bulk accessors above.
 - **`Request` header keys normalized to lowercase** — HTTP headers are case-insensitive (RFC 7230). The constructor lower-cases every header key once (`array_change_key_case()`), and `Request::header()` lower-cases the lookup key, so every reader — `header()`, `contentType()`, `accepts()`, `ip()` — is case-insensitive however the request was built (by `RequestFactory` from `$_SERVER`, in a test, or by hand). Callers such as `HttpTestCase` therefore pass headers as-is. Responses keep the caller's spelling instead (e.g. `'Content-Type'`), since callers choose that casing deliberately for outbound headers and `ResponseEmitter` sends it as-is — but `withHeader()` on `Response` and `StreamedResponse` (and the `StreamedResponse` constructor) go through `Headers`, which replaces an existing header whose name differs only in case, so one logical header is never emitted twice. Read a response header with `Headers::get($response->headers(), 'Content-Type')`, never `headers()['Content-Type']` — the stored key may be spelled differently.
 - **`RequestFactory` is a static class** — There is no reason to inject it; it reads from PHP globals which are process-global anyway. Static methods make the intent clear and avoid pointless instantiation.
 - **Responses write their own body (emit strategy)** — `ResponseInterface::writeBody(Closure $write)` instead of `body(): string` on the interface. The emitter never branches on the response type, so a new response type needs no emitter change, and a string body and a stream are emitted the same way. Only code that genuinely needs the string (e.g. a toolbar injector) checks `instanceof Response`.
@@ -436,5 +437,5 @@ Implements `ResponseInterface` with a `Closure(): iterable<string>` chunk factor
 | Session handling | Application session middleware |
 | CORS headers | `ez-php/framework` (`CorsMiddleware`) |
 | HTTP client (outgoing requests) | `ez-php/http-client` |
-| PSR-7 / PSR-15 compatibility | Application-level adapter if needed |
+| PSR-7 / PSR-15 compatibility | `ez-php/psr-bridge` |
 | Upload processing beyond `UploadedFile`/`Request::file()` (storage, image processing, chunked/resumable uploads) | Application layer, `ez-php/storage`, `ez-php/media` |

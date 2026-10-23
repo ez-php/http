@@ -35,6 +35,16 @@ final readonly class UploadedFile
     }
 
     /**
+     * Return the server-side path of the temporary upload file.
+     *
+     * @return string
+     */
+    public function tmpName(): string
+    {
+        return $this->tmpName;
+    }
+
+    /**
      * Return the original filename as provided by the client.
      *
      * @return string

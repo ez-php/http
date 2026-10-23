@@ -733,4 +733,46 @@ final class RequestTest extends TestCase
         $this->assertNull($request->input('name'));
         $this->assertSame([], $request->all());
     }
+
+    /**
+     * @return void
+     */
+    public function test_bulk_accessors_return_whole_maps(): void
+    {
+        $file = new UploadedFile('a.txt', 'text/plain', 3, '/tmp/php-a', UPLOAD_ERR_OK);
+        $request = new Request(
+            method: 'POST',
+            uri: '/orders/7?x=1',
+            query: ['x' => '1'],
+            body: ['name' => 'Ada'],
+            headers: ['X-Trace' => 'abc', 'Content-Type' => 'application/x-www-form-urlencoded'],
+            cookies: ['sid' => 's1'],
+            server: ['REMOTE_ADDR' => '10.0.0.1'],
+            params: ['id' => '7'],
+            files: ['upload' => $file],
+        );
+
+        $this->assertSame(['x-trace' => 'abc', 'content-type' => 'application/x-www-form-urlencoded'], $request->headers());
+        $this->assertSame(['x' => '1'], $request->queryParams());
+        $this->assertSame(['name' => 'Ada'], $request->bodyParams());
+        $this->assertSame(['sid' => 's1'], $request->cookies());
+        $this->assertSame(['REMOTE_ADDR' => '10.0.0.1'], $request->serverParams());
+        $this->assertSame(['id' => '7'], $request->params());
+        $this->assertSame(['upload' => $file], $request->files());
+    }
+
+    /**
+     * @return void
+     */
+    public function test_body_params_decode_json_body(): void
+    {
+        $request = new Request(
+            method: 'POST',
+            uri: '/',
+            headers: ['Content-Type' => 'application/json'],
+            rawBody: '{"a":1}',
+        );
+
+        $this->assertSame(['a' => 1], $request->bodyParams());
+    }
 }
