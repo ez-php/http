@@ -297,6 +297,8 @@ src/
 
 tests/
 ├── TestCase.php                    — Base PHPUnit test case
+├── Http/RequestTypedInputTest.php  — strict typed input accessors: a value only when it is exactly the requested type (or its unambiguous form string)
+├── Http/RequestContentNegotiationTest.php  — contentType(), isJson(), acceptsJson(), wantsJson(), accepts()
 ├── Http/RequestTest.php            — Covers Request: all accessors, withParams, withMethod, file()
 ├── Http/RequestFactoryTest.php     — Covers RequestFactory: superglobal parsing, header extraction, files
 ├── Http/ResponseTest.php           — Covers Response: status, body, withHeader, headers, writeBody
