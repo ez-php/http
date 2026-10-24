@@ -293,7 +293,7 @@ src/
 ├── Sse/
 │   └── SseEvent.php         — Single Server-Sent Events frame: data, event, id, retry + toString()
 ├── Cookie.php               — Immutable value object for Set-Cookie attributes (incl. validated SameSite, negative ttl = delete); toHeaderValue()
-└── UploadedFile.php         — Wraps a $_FILES entry: isValid(), moveTo(), originalName(), mimeType(), size(), error(), tmpName()
+└── UploadedFile.php         — Wraps a $_FILES entry: isValid(), moveTo(), originalName(), mimeType(), size(), error(), tmpName(); fromLocalFile() for non-SAPI files (moveTo() renames)
 
 tests/
 ├── TestCase.php                    — Base PHPUnit test case
@@ -311,7 +311,7 @@ tests/
 ├── Http/Sse/SseEventTest.php       — Covers SseEvent: getters, toString formatting, multi-line data
 ├── Http/ResponseFactoryTest.php    — Covers ResponseFactory: json, redirect, html, text, noContent
 ├── Http/CookieTest.php             — Covers Cookie: all attributes, SameSite normalization/validation, negative-ttl deletion, toHeaderValue() format
-└── Http/UploadedFileTest.php       — Covers UploadedFile: isValid(), moveTo(), accessors
+└── Http/UploadedFileTest.php       — Covers UploadedFile: isValid(), moveTo() (SAPI and fromLocalFile()), accessors
 ```
 
 ---

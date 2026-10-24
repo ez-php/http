@@ -130,6 +130,57 @@ final class UploadedFileTest extends TestCase
     /**
      * @return void
      */
+    public function test_from_local_file_move_to_renames_a_non_sapi_file(): void
+    {
+        $source = (string) tempnam(sys_get_temp_dir(), 'ezhttp');
+        file_put_contents($source, 'payload');
+        $destination = sys_get_temp_dir() . '/ezhttp_moved_' . bin2hex(random_bytes(4)) . '.txt';
+
+        $file = UploadedFile::fromLocalFile('a.txt', 'text/plain', 7, $source, UPLOAD_ERR_OK);
+
+        try {
+            $file->moveTo($destination);
+
+            $this->assertFileDoesNotExist($source);
+            $this->assertSame('payload', file_get_contents($destination));
+        } finally {
+            foreach ([$source, $destination] as $path) {
+                if (is_file($path)) {
+                    unlink($path);
+                }
+            }
+        }
+    }
+
+    /**
+     * @return void
+     */
+    public function test_from_local_file_move_to_throws_when_the_rename_fails(): void
+    {
+        $file = UploadedFile::fromLocalFile('a.txt', 'text/plain', 7, '/tmp/nonexistent_ezhttp_source', UPLOAD_ERR_OK);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage("Failed to move uploaded file to '/tmp/ezhttp_dest.txt'");
+
+        $file->moveTo('/tmp/ezhttp_dest.txt');
+    }
+
+    /**
+     * @return void
+     */
+    public function test_from_local_file_move_to_throws_when_file_has_upload_error(): void
+    {
+        $file = UploadedFile::fromLocalFile('a.txt', 'text/plain', 0, '', UPLOAD_ERR_PARTIAL);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('upload error code 3');
+
+        $file->moveTo('/tmp/ezhttp_dest.txt');
+    }
+
+    /**
+     * @return void
+     */
     public function test_tmp_name_returns_server_path(): void
     {
         $this->assertSame('/tmp/phpXXXXXX', $this->makeValidFile()->tmpName());

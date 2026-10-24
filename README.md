@@ -149,7 +149,7 @@ if ($file !== null && $file->isValid()) {
 | `HeaderSenderInterface` | Abstraction over `header()` calls (injectable for testing) |
 | `NativeHeaderSender` | Default `HeaderSenderInterface` implementation using PHP's `header()` |
 | `Cookie` | Immutable value object for `Set-Cookie` attributes; `toHeaderValue()` produces the header string |
-| `UploadedFile` | Wraps a `$_FILES` entry; `isValid()`, `moveTo()`, `originalName()`, `mimeType()`, `size()`, `error()` |
+| `UploadedFile` | Wraps a `$_FILES` entry; `isValid()`, `moveTo()`, `originalName()`, `mimeType()`, `size()`, `error()`; `fromLocalFile()` for files PHP's SAPI did not receive |
 
 ## License
 
