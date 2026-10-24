@@ -232,7 +232,7 @@ After scaffolding:
 |---|---|---|---|
 | root (`ez-php-project`) | 3306 | 6379 (`REDIS_PORT`) | 7700 |
 | `ez-php/framework` | 3307 | — | — |
-| `ez-php/` (application template) | 3308 | 6383 (`REDIS_PORT`) | — |
+| `ez-php/` (application template) | 3308 | 6383 (`REDIS_PORT`) | 7702 (opt-in service) |
 | `ez-php/orm` | 3309 | — | — |
 | `ez-php/cache` | — | 6380 (`REDIS_HOST_PORT`) | — |
 | `ez-php/queue` | 3310 | 6381 (`REDIS_HOST_PORT`) | — |
@@ -245,7 +245,7 @@ After scaffolding:
 | `ez-php/session` | — | 6387 (`REDIS_HOST_PORT`) | — |
 | `ez-php/metrics` | — | 6388 (`REDIS_HOST_PORT`) | — |
 | `ez-php/event-store-snapshots` | 3312 | — | — |
-| **next free** | **3313** | **6389** | **7702** |
+| **next free** | **3313** | **6389** | **7703** |
 
 Only set a port for services the module actually uses. Modules without external services need no port config.
 
@@ -330,6 +330,8 @@ tests/
 | `input(key, default)` | `mixed` | `$_POST` / parsed body equivalent |
 | `integer(key)` | `?int` | Body value when it is an int or a plain digit string (optional `-`, no leading zeros) within int range; otherwise null — no casting of `"12abc"`/`12.0` |
 | `boolean(key)` | `?bool` | Body value when it is a bool, `"true"`/`"false"`/`"1"`/`"0"` or `1`/`0`; otherwise null |
+| `paramInteger(key)` / `queryInteger(key)` | `?int` | Route parameter / query-string value under `integer()`'s strict rules |
+| `enum(key, class)` | `?BackedEnum` | Body value as a case of the backed enum: a string equal to a case value for string backing, `integer()`'s rules for int backing (form digit strings work); otherwise null |
 | `decimal(key, scale)` | `?string` | Body value (int, float or `-?digits(.digits)?` string) as a string; with `scale`, more fraction digits → null (never rounded), fewer → padded |
 | `all()` | `array<string, mixed>` | Query + body merged; body wins on collision |
 | `has(key)` | `bool` | Key present in query **or** body (`array_key_exists`; null counts as present) |
@@ -404,7 +406,7 @@ Implements `ResponseInterface` with a `Closure(): iterable<string>` chunk factor
 
 ## Design Decisions and Constraints
 
-- **Typed accessors live on `Request`, not on `RequestInterface`.** `integer()`/`boolean()`/`decimal()` are additive conveniences; adding them to the interface would break every other `RequestInterface` implementation. They read the body like `input()` (not the query string), are strict on purpose (null instead of a best-effort cast, so `"12abc"` can't become 12), and stop at scalar parsing — rules and error messages stay in `ez-php/validation`. `decimal()` returns a string so a money value never passes through float rounding.
+- **Typed accessors live on `Request`, not on `RequestInterface`.** `integer()`/`boolean()`/`decimal()`/`enum()` are additive conveniences; adding them to the interface would break every other `RequestInterface` implementation. They read the body like `input()` (not the query string) — `paramInteger()`/`queryInteger()` are the only typed reads of the other sources, integers only (route ids, `?page=`), sharing `integer()`'s parser; there is no general route-parameter binding — are strict on purpose (null instead of a best-effort cast, so `"12abc"` can't become 12), and stop at scalar parsing — rules and error messages stay in `ez-php/validation`. `decimal()` returns a string so a money value never passes through float rounding.
 - **`Request` is `final readonly`** — Immutability is enforced by the language. Route parameters and method overrides are applied by returning new instances via `withParams()` / `withMethod()`, preserving the original object throughout the middleware chain.
 - **`Response` uses clone-based withers** — PHP's `readonly` class feature prevents post-construction mutation, but `header()` addition is a natural part of building a response in middleware. Clone-based withers keep the API clean without requiring a builder pattern.
 - **No PSR-7** — PSR-7 `MessageInterface` brings significant complexity (streams, URI objects, multiple `withXxx` methods). This package intentionally stays simple. PSR-7/PSR-15 interop lives in `ez-php/psr-bridge`, which converts at the boundary using the bulk accessors above.

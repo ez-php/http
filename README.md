@@ -34,6 +34,9 @@ echo $request->input('name');      // POST body value
 $qty   = $request->integer('qty');              // 3 or "3" → 3; "3abc", 3.0, true → null
 $gift  = $request->boolean('gift');             // true/false, "true"/"false"/"1"/"0", 1/0; else null
 $price = $request->decimal('price', scale: 2);  // "19.9" → "19.90"; "19.999" → null (never rounded)
+$slot  = $request->enum('slot', Slot::class);   // backed enum case by value; unknown value or wrong type → null
+$id    = $request->paramInteger('id');          // route parameter, same strict rules as integer()
+$page  = $request->queryInteger('page');        // query-string value, same strict rules as integer()
 echo $request->header('accept');   // request header (case-insensitive)
 echo $request->cookie('session');  // cookie value
 echo $request->param('id');        // route parameter (set by router)

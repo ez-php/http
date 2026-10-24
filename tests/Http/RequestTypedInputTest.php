@@ -10,6 +10,24 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
+ * String-backed enum fixture for Request::enum().
+ */
+enum RequestTypedInputSlot: string
+{
+    case Weapon = 'weapon';
+    case Armor = 'armor';
+}
+
+/**
+ * Int-backed enum fixture for Request::enum().
+ */
+enum RequestTypedInputRarity: int
+{
+    case Common = 1;
+    case Rare = 3;
+}
+
+/**
  * Strict typed input accessors: a value comes back only when it is exactly the
  * requested type (or its unambiguous string form from a form body).
  *
@@ -115,6 +133,90 @@ final class RequestTypedInputTest extends TestCase
         self::assertSame($expected, $this->request(['v' => $value])->decimal('v', scale: $scale));
     }
 
+    /**
+     * @return array<string, array{mixed, RequestTypedInputSlot|null}>
+     */
+    public static function stringEnums(): array
+    {
+        return [
+            'matching value' => ['weapon', RequestTypedInputSlot::Weapon],
+            'unknown value' => ['ring', null],
+            'case name is not the value' => ['Weapon', null],
+            'int' => [1, null],
+            'bool' => [true, null],
+            'array' => [['weapon'], null],
+            'empty' => ['', null],
+        ];
+    }
+
+    #[DataProvider('stringEnums')]
+    public function test_enum_with_string_backing(mixed $value, ?RequestTypedInputSlot $expected): void
+    {
+        self::assertSame($expected, $this->request(['v' => $value])->enum('v', RequestTypedInputSlot::class));
+    }
+
+    /**
+     * @return array<string, array{mixed, RequestTypedInputRarity|null}>
+     */
+    public static function intEnums(): array
+    {
+        return [
+            'int' => [3, RequestTypedInputRarity::Rare],
+            'digit string from a form body' => ['1', RequestTypedInputRarity::Common],
+            'unknown int' => [2, null],
+            'leading zero' => ['03', null],
+            'float' => [3.0, null],
+            'name' => ['Rare', null],
+            'bool' => [true, null],
+        ];
+    }
+
+    #[DataProvider('intEnums')]
+    public function test_enum_with_int_backing(mixed $value, ?RequestTypedInputRarity $expected): void
+    {
+        self::assertSame($expected, $this->request(['v' => $value])->enum('v', RequestTypedInputRarity::class));
+    }
+
+    /**
+     * @return array<string, array{mixed, int|null}>
+     */
+    public static function nonBodyIntegers(): array
+    {
+        return [
+            'digit string' => ['42', 42],
+            'negative string' => ['-1', -1],
+            'int' => [7, 7],
+            'leading zero' => ['007', null],
+            'trailing garbage' => ['42abc', null],
+            'decimal string' => ['4.2', null],
+            'overflow' => ['99999999999999999999', null],
+            'array' => [['1'], null],
+            'empty' => ['', null],
+        ];
+    }
+
+    #[DataProvider('nonBodyIntegers')]
+    public function test_param_integer(mixed $value, ?int $expected): void
+    {
+        self::assertSame($expected, new Request('GET', '/', params: ['id' => $value])->paramInteger('id'));
+    }
+
+    #[DataProvider('nonBodyIntegers')]
+    public function test_query_integer(mixed $value, ?int $expected): void
+    {
+        self::assertSame($expected, new Request('GET', '/', query: ['page' => $value])->queryInteger('page'));
+    }
+
+    public function test_integer_accessors_read_only_their_own_source(): void
+    {
+        $request = new Request('POST', '/', query: ['q' => '1'], body: ['b' => '2'], params: ['p' => '3']);
+
+        self::assertNull($request->integer('q'));
+        self::assertNull($request->queryInteger('b'));
+        self::assertNull($request->paramInteger('q'));
+        self::assertSame(3, $request->paramInteger('p'));
+    }
+
     public function test_missing_keys_return_null(): void
     {
         $request = $this->request([]);
@@ -122,6 +224,9 @@ final class RequestTypedInputTest extends TestCase
         self::assertNull($request->integer('missing'));
         self::assertNull($request->boolean('missing'));
         self::assertNull($request->decimal('missing'));
+        self::assertNull($request->enum('missing', RequestTypedInputSlot::class));
+        self::assertNull($request->paramInteger('missing'));
+        self::assertNull($request->queryInteger('missing'));
     }
 
     public function test_values_come_from_a_json_body(): void

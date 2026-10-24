@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace EzPhp\Http;
 
+use BackedEnum;
+use ReflectionEnum;
+
 /**
  * Class Request
  *
@@ -109,19 +112,60 @@ final readonly class Request implements RequestInterface
      */
     public function integer(string $key): ?int
     {
+        return self::strictInteger($this->input($key));
+    }
+
+    /**
+     * Read a route parameter as an integer, with the same strict rules as integer().
+     *
+     * @param string $key
+     *
+     * @return int|null
+     */
+    public function paramInteger(string $key): ?int
+    {
+        return self::strictInteger($this->param($key));
+    }
+
+    /**
+     * Read a query-string value as an integer, with the same strict rules as integer().
+     *
+     * @param string $key
+     *
+     * @return int|null
+     */
+    public function queryInteger(string $key): ?int
+    {
+        return self::strictInteger($this->query($key));
+    }
+
+    /**
+     * Read a body value as a backed enum case, strictly.
+     *
+     * A string-backed enum needs a string equal to a case's value (not its name).
+     * An int-backed enum takes the value through integer()'s rules, so the digit
+     * string a form body sends works too. Anything else — an unknown value, a
+     * wrong type — is null, as is a missing key.
+     *
+     * @template E of BackedEnum
+     *
+     * @param string          $key
+     * @param class-string<E> $enum
+     *
+     * @return E|null
+     */
+    public function enum(string $key, string $enum): ?BackedEnum
+    {
         $value = $this->input($key);
+        $backing = (string) new ReflectionEnum($enum)->getBackingType();
 
-        if (is_int($value)) {
-            return $value;
+        if ($backing === 'int') {
+            $int = self::strictInteger($value);
+
+            return $int === null ? null : $enum::tryFrom($int);
         }
 
-        if (!is_string($value) || preg_match('/^-?(0|[1-9][0-9]*)$/', $value) !== 1) {
-            return null;
-        }
-
-        $int = filter_var($value, FILTER_VALIDATE_INT);
-
-        return is_int($int) ? $int : null; // false on overflow
+        return is_string($value) ? $enum::tryFrom($value) : null;
     }
 
     /**
@@ -562,5 +606,28 @@ final readonly class Request implements RequestInterface
         }
 
         return str_contains($accept, $contentType) || str_contains($accept, '*/*');
+    }
+
+    /**
+     * An int, or a string of plain decimal digits with an optional minus sign (no
+     * leading zeros, whitespace, `+`, fraction or exponent) that fits into a PHP int.
+     *
+     * @param mixed $value
+     *
+     * @return int|null
+     */
+    private static function strictInteger(mixed $value): ?int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+
+        if (!is_string($value) || preg_match('/^-?(0|[1-9][0-9]*)$/', $value) !== 1) {
+            return null;
+        }
+
+        $int = filter_var($value, FILTER_VALIDATE_INT);
+
+        return is_int($int) ? $int : null; // false on overflow
     }
 }
