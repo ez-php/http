@@ -133,6 +133,21 @@ final class Response implements ResponseInterface
     }
 
     /**
+     * Return a clone with the queued cookies replaced by $cookies.
+     *
+     * @param list<Cookie> $cookies
+     *
+     * @return static
+     */
+    public function withCookies(array $cookies): static
+    {
+        $clone = clone $this;
+        $clone->cookies = $cookies;
+
+        return $clone;
+    }
+
+    /**
      * Return a clone of this response with a replaced body.
      *
      * All headers and cookies are preserved.

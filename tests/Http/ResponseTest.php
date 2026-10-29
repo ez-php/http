@@ -202,6 +202,30 @@ final class ResponseTest extends TestCase
         $this->assertSame('b', $response->cookies()[1]->name());
     }
 
+    /**
+     * @return void
+     */
+    public function test_with_cookies_replaces_the_queued_cookies_on_a_clone(): void
+    {
+        $original = (new Response())->withCookie('a', '1')->withCookie('b', '2');
+        $replaced = $original->withCookies([new Cookie('c', '3', 60)]);
+
+        $this->assertCount(2, $original->cookies());
+        $this->assertCount(1, $replaced->cookies());
+        $this->assertSame('c', $replaced->cookies()[0]->name());
+        $this->assertSame(60, $replaced->cookies()[0]->ttl());
+    }
+
+    /**
+     * @return void
+     */
+    public function test_with_cookies_empty_list_drops_every_cookie(): void
+    {
+        $response = (new Response())->withCookie('a', '1')->withCookies([]);
+
+        $this->assertSame([], $response->cookies());
+    }
+
     // ── withBody ──────────────────────────────────────────────────────────────
 
     /**

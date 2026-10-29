@@ -488,6 +488,31 @@ final readonly class Request implements RequestInterface
     }
 
     /**
+     * Return a copy with the cookie map replaced — for middleware that rewrites
+     * incoming cookie values (e.g. decrypting them). Concrete `Request` only, like
+     * the bulk accessors: `RequestInterface` is unchanged.
+     *
+     * @param array<string, mixed> $cookies
+     *
+     * @return self
+     */
+    public function withCookies(array $cookies): self
+    {
+        return new self(
+            method: $this->method,
+            uri: $this->uri,
+            query: $this->query,
+            body: $this->body,
+            headers: $this->headers,
+            cookies: $cookies,
+            server: $this->server,
+            rawBody: $this->rawBody,
+            params: $this->params,
+            files: $this->files,
+        );
+    }
+
+    /**
      * @param string $method
      *
      * @return self

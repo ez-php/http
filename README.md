@@ -124,6 +124,18 @@ the header carries `Max-Age=0` and the browser drops it.
 $response = $response->withCookie('remember', '', -1, secure: true, httpOnly: true);
 ```
 
+Middleware that rewrites queued cookies (e.g. to encrypt their values) replaces the whole list with
+`withCookies(list<Cookie>)`; on the request side, `Request::withCookies(array)` returns a copy with a
+new cookie map:
+
+```php
+$response = $response->withCookies(array_map(
+    fn (Cookie $c): Cookie => new Cookie($c->name(), strrev($c->value()), $c->ttl(), $c->path()),
+    $response->cookies(),
+));
+$request = $request->withCookies(['session' => 'decoded-value']);
+```
+
 ### UploadedFile
 
 ```php

@@ -278,7 +278,7 @@ src/
 ├── RequestInterface.php     — Contract for the Request value object
 ├── Request.php              — Immutable HTTP request value object (final readonly class)
 ├── RequestFactory.php       — Builds a Request from PHP superglobals ($_SERVER, $_GET, $_POST, $_FILES, etc.)
-├── ResponseInterface.php    — Body-neutral pipeline contract: status, headers, withHeader, cookies, withCookie, writeBody
+├── ResponseInterface.php    — Body-neutral pipeline contract: status, headers, withHeader, cookies, withCookie, withCookies, writeBody
 ├── Response.php             — Clone-based HTTP response value object with a string body
 ├── StreamedResponse.php     — Chunk-factory response; download() for resources, sse() for Server-Sent Events
 ├── HeaderValidator.php      — Rejects CR/LF/control characters in header names and values (shared by both responses)
@@ -348,6 +348,7 @@ tests/
 **Immutable wither methods** — return a new `Request` instance:
 - `withParams(array<string, string>)` — used by the router to attach extracted URL parameters
 - `withMethod(string)` — used for HTTP method override
+- `withCookies(array<string, mixed>)` — replaces the cookie map, for middleware that rewrites incoming cookie values (e.g. `ez-php/encryption`'s `EncryptedCookieMiddleware`). Concrete `Request` only, like the bulk accessors
 
 **Header keys are always lowercased.** `header('Authorization')` and `header('authorization')` are equivalent.
 
@@ -418,6 +419,7 @@ Implements `ResponseInterface` with a `Closure(): iterable<string>` chunk factor
 - **Body output behind `OutputInterface`** — mirrors `HeaderSenderInterface`, so flushing and client disconnects are testable without an HTTP context.
 - **`ResponseEmitter` is a regular class** — Unlike `RequestFactory`, it may need to be replaced in tests or extended (e.g. streaming emitter). Keeping it instantiable allows binding a custom emitter in the container.
 - **A negative `ttl` deletes the cookie (`Max-Age=0`); `0` stays a session cookie.** There was no way to clear a cookie (logout, a revoked maintenance bypass, a stale `XSRF-TOKEN`): `ttl <= 0` emitted no `Max-Age`, which keeps the cookie for the browser session. Giving negative values that meaning reused the existing parameter instead of adding a `withoutCookie()` wither to `ResponseInterface` (a breaking change for its implementers), and no caller passed a negative TTL before.
+- **`ResponseInterface::withCookies(list<Cookie>)` replaces the queued cookies.** Added (2.6.4) so a middleware can rewrite cookies a handler queued — `ez-php/encryption`'s `EncryptedCookieMiddleware` swaps each plaintext value for its ciphertext, which `withCookie()` alone cannot do (it only appends; the plaintext would still be sent). Unlike the negative-TTL decision above, there was no existing parameter to reuse, so this is a deliberate interface addition: a third-party `ResponseInterface` implementation must add the method. `withCookies([])` also covers the "drop every cookie" case.
 - **`SameSite` is a trailing optional `withCookie()` parameter, empty by default** — `''` omits the attribute, so every existing caller keeps its exact `Set-Cookie` output; callers opt in per cookie (the framework's `XsrfCookieMiddleware` and maintenance bypass cookie send `Lax`). `Cookie` normalizes the value case-insensitively and rejects anything but `Lax`/`Strict`/`None`, and `None` without `Secure` (browsers drop such cookies silently).
 - **No JSON/redirect helpers** — `Response::json()`, `Response::redirect()`, etc. are application-layer conveniences. They do not belong in the value object itself.
 - **Zero framework dependencies** — This package must remain usable standalone. Do not import Application, Container, Router, or any other framework class.

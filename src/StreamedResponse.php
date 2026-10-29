@@ -230,6 +230,21 @@ final class StreamedResponse implements ResponseInterface
     }
 
     /**
+     * Return a clone with the queued cookies replaced by $cookies.
+     *
+     * @param list<Cookie> $cookies
+     *
+     * @return static
+     */
+    public function withCookies(array $cookies): static
+    {
+        $clone = clone $this;
+        $clone->cookies = $cookies;
+
+        return $clone;
+    }
+
+    /**
      * Write each chunk produced by the factory.
      *
      * On ClientDisconnectedException the exception is rethrown at once — a

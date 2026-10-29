@@ -160,6 +160,19 @@ final class StreamedResponseTest extends TestCase
     /**
      * @return void
      */
+    public function test_with_cookies_replaces_the_queued_cookies_on_a_clone(): void
+    {
+        $original = (new StreamedResponse(fn (): iterable => []))->withCookie('session', 'abc');
+        $replaced = $original->withCookies([new Cookie('other', 'xyz')]);
+
+        $this->assertSame('session', $original->cookies()[0]->name());
+        $this->assertCount(1, $replaced->cookies());
+        $this->assertSame('other', $replaced->cookies()[0]->name());
+    }
+
+    /**
+     * @return void
+     */
     public function test_on_error_frames_are_written_then_the_original_exception_is_rethrown(): void
     {
         $failure = new RuntimeException('boom');

@@ -251,6 +251,24 @@ final class RequestTest extends TestCase
         $this->assertSame('POST', $original->method());
     }
 
+    /**
+     * @return void
+     */
+    public function test_with_cookies_replaces_cookies_and_preserves_the_rest(): void
+    {
+        $original = $this->makeRequest()->withParams(['id' => '7']);
+        $with = $original->withCookies(['session' => 'decrypted']);
+
+        $this->assertSame('decrypted', $with->cookie('session'));
+        $this->assertSame('abc123', $original->cookie('session'));
+        $this->assertSame('POST', $with->method());
+        $this->assertSame('/users', $with->uri());
+        $this->assertSame('2', $with->query('page'));
+        $this->assertSame('application/json', $with->header('content-type'));
+        $this->assertSame('7', $with->param('id'));
+        $this->assertSame('{"name":"John"}', $with->rawBody());
+    }
+
     // ── ip ────────────────────────────────────────────────────────────────────
 
     /**

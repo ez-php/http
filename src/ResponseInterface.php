@@ -81,6 +81,17 @@ interface ResponseInterface
     ): static;
 
     /**
+     * Return a clone whose queued cookies are replaced by $cookies — for
+     * middleware that rewrites outgoing cookies (e.g. encrypting their values).
+     * `withCookies([])` drops every queued cookie.
+     *
+     * @param list<Cookie> $cookies
+     *
+     * @return static
+     */
+    public function withCookies(array $cookies): static;
+
+    /**
      * Write the response body by calling $write once per chunk.
      *
      * @param \Closure(string): void $write
