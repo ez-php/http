@@ -36,6 +36,7 @@ final readonly class Request implements RequestInterface
      * @param string                      $rawBody
      * @param array<string, mixed>        $params
      * @param array<string, UploadedFile> $files
+     * @param array<string, mixed>        $attributes Values set by middleware (withAttribute()), never by the client
      */
     public function __construct(
         private string $method,
@@ -48,6 +49,7 @@ final readonly class Request implements RequestInterface
         private string $rawBody = '',
         private array $params = [],
         private array $files = [],
+        private array $attributes = [],
     ) {
         $this->headers = array_change_key_case($headers, CASE_LOWER);
     }
@@ -484,6 +486,7 @@ final readonly class Request implements RequestInterface
             rawBody: $this->rawBody,
             params: $params,
             files: $this->files,
+            attributes: $this->attributes,
         );
     }
 
@@ -509,6 +512,7 @@ final readonly class Request implements RequestInterface
             rawBody: $this->rawBody,
             params: $this->params,
             files: $this->files,
+            attributes: $this->attributes,
         );
     }
 
@@ -530,7 +534,47 @@ final readonly class Request implements RequestInterface
             rawBody: $this->rawBody,
             params: $this->params,
             files: $this->files,
+            attributes: $this->attributes,
         );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function withAttribute(string $name, mixed $value): static
+    {
+        return new self(
+            method: $this->method,
+            uri: $this->uri,
+            query: $this->query,
+            body: $this->body,
+            headers: $this->headers,
+            cookies: $this->cookies,
+            server: $this->server,
+            rawBody: $this->rawBody,
+            params: $this->params,
+            files: $this->files,
+            attributes: [...$this->attributes, $name => $value],
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function attribute(string $name, mixed $default = null): mixed
+    {
+        return array_key_exists($name, $this->attributes) ? $this->attributes[$name] : $default;
+    }
+
+    /**
+     * All attributes set by middleware. Concrete `Request` only, like the other
+     * bulk accessors.
+     *
+     * @return array<string, mixed>
+     */
+    public function attributes(): array
+    {
+        return $this->attributes;
     }
 
     // ── JSON body parsing ─────────────────────────────────────────────────────

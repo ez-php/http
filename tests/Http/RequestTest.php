@@ -793,4 +793,24 @@ final class RequestTest extends TestCase
 
         $this->assertSame(['a' => 1], $request->bodyParams());
     }
+
+    public function test_attributes_are_immutable_and_survive_other_withers(): void
+    {
+        $request = new Request('GET', '/heroes/me');
+        $withHero = $request->withAttribute('hero', ['id' => 7])->withAttribute('tenant', 'acme');
+
+        $this->assertNull($request->attribute('hero'));
+        $this->assertSame([], $request->attributes());
+        $this->assertSame(['id' => 7], $withHero->attribute('hero'));
+        $this->assertSame('fallback', $withHero->attribute('missing', 'fallback'));
+
+        $routed = $withHero->withParams(['id' => '7'])->withMethod('POST')->withCookies(['a' => 'b']);
+
+        $this->assertSame(['hero' => ['id' => 7], 'tenant' => 'acme'], $routed->attributes());
+    }
+
+    public function test_a_null_attribute_is_returned_not_the_default(): void
+    {
+        $this->assertNull((new Request('GET', '/'))->withAttribute('user', null)->attribute('user', 'guest'));
+    }
 }

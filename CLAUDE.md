@@ -151,7 +151,7 @@ php make_module.php <name> --description="..." --services=mysql,redis --extensio
 
 `<name>` is the kebab-case package name; the namespace is derived as
 `EzPhp\<PascalCase>` (each `-`-separated word upper-cased) unless `--namespace=`
-overrides it. Existing exceptions the guess gets wrong: `asyncapi` → `AsyncApi`,
+overrides it. Existing exceptions the guess gets wrong: `asyncapi` → `AsyncApi`, `asyncapi-ui` → `AsyncApiUi`,
 `bignum` → `BigNum`, `dataloader` → `DataLoader`, `dotenv` → `Env`, `graphql` → `GraphQL`, `graphql-subscriptions` → `GraphQLSubscriptions`, `oauth` → `OAuth`,
 `opcache` → `OPCache`, `openapi` → `OpenApi`, `qrcode` → `QrCode`, `swagger-ui` → `SwaggerUI`, `webauthn` → `WebAuthn` and
 `websocket` → `WebSocket`; `websocket-client` → `WebsocketClient`, `websocket-tls` → `WebsocketTls`,
@@ -299,7 +299,7 @@ tests/
 ├── TestCase.php                    — Base PHPUnit test case
 ├── Http/RequestTypedInputTest.php  — strict typed input accessors: a value only when it is exactly the requested type (or its unambiguous form string)
 ├── Http/RequestContentNegotiationTest.php  — contentType(), isJson(), acceptsJson(), wantsJson(), accepts()
-├── Http/RequestTest.php            — Covers Request: all accessors, withParams, withMethod, file()
+├── Http/RequestTest.php            — Covers Request: all accessors, withParams, withMethod, file(), attributes surviving other withers
 ├── Http/RequestFactoryTest.php     — Covers RequestFactory: superglobal parsing, header extraction, files
 ├── Http/ResponseTest.php           — Covers Response: status, body, withHeader, headers, writeBody
 ├── Http/StreamedResponseTest.php   — Covers StreamedResponse: chunk order, factory re-read, onError frames, disconnect, download()
@@ -343,11 +343,13 @@ tests/
 | `rawBody()` | `string` | Raw `php://input` content |
 | `headers()` / `queryParams()` / `bodyParams()` / `cookies()` / `serverParams()` / `params()` / `files()` | `array` | Bulk accessors — whole maps for code that copies a request as a whole (e.g. `ez-php/psr-bridge`'s PSR-7 conversion). `bodyParams()` is the parsed body `input()` reads (explicit body, else decoded JSON). Concrete `Request` only — `RequestInterface` is unchanged, so other implementations aren't broken |
 | `param(key, default)` | `mixed` | URL route parameters (e.g. `{id}`) set by the router |
+| `attribute(name, default)` / `attributes()` | `mixed` / `array` | Values middleware attached with `withAttribute()` (a resolved user resource, a tenant); never client input. `attributes()` is a concrete-`Request` bulk accessor |
 | `ip(trustedProxies[])` | `string` | Client IP; reads `X-Forwarded-For` only when `REMOTE_ADDR` is a trusted proxy, walking the chain from the right and returning the first untrusted hop (the leftmost entry is client-controlled) |
 
 **Immutable wither methods** — return a new `Request` instance:
 - `withParams(array<string, string>)` — used by the router to attach extracted URL parameters
 - `withMethod(string)` — used for HTTP method override
+- `withAttribute(name, value)` — middleware hands a resolved object to the action; on `RequestInterface`, and carried through every other wither (so the router's `withParams()` keeps it)
 - `withCookies(array<string, mixed>)` — replaces the cookie map, for middleware that rewrites incoming cookie values (e.g. `ez-php/encryption`'s `EncryptedCookieMiddleware`). Concrete `Request` only, like the bulk accessors
 
 **Header keys are always lowercased.** `header('Authorization')` and `header('authorization')` are equivalent.
@@ -419,6 +421,7 @@ Implements `ResponseInterface` with a `Closure(): iterable<string>` chunk factor
 - **Body output behind `OutputInterface`** — mirrors `HeaderSenderInterface`, so flushing and client disconnects are testable without an HTTP context.
 - **`ResponseEmitter` is a regular class** — Unlike `RequestFactory`, it may need to be replaced in tests or extended (e.g. streaming emitter). Keeping it instantiable allows binding a custom emitter in the container.
 - **A negative `ttl` deletes the cookie (`Max-Age=0`); `0` stays a session cookie.** There was no way to clear a cookie (logout, a revoked maintenance bypass, a stale `XSRF-TOKEN`): `ttl <= 0` emitted no `Max-Age`, which keeps the cookie for the browser session. Giving negative values that meaning reused the existing parameter instead of adding a `withoutCookie()` wither to `ResponseInterface` (a breaking change for its implementers), and no caller passed a negative TTL before.
+- **`RequestInterface::withAttribute()`/`attribute()` are a deliberate interface addition (2.6.5).** Middleware is typed against `RequestInterface`, so an attribute API on the concrete `Request` only would force an `instanceof` check in every middleware that sets one — unlike the typed accessors, which are read by actions that receive the concrete class. The shape is PSR-7's (`withAttribute`/`getAttribute` without the `get`), with no `withoutAttribute()` (YAGNI). A third-party `RequestInterface` implementation must add the two methods, as for `ResponseInterface::withCookies()`. Attributes are not part of any client-facing input (`all()`, `input()`), and `ez-php/psr-bridge` does not map them yet.
 - **`ResponseInterface::withCookies(list<Cookie>)` replaces the queued cookies.** Added (2.6.4) so a middleware can rewrite cookies a handler queued — `ez-php/encryption`'s `EncryptedCookieMiddleware` swaps each plaintext value for its ciphertext, which `withCookie()` alone cannot do (it only appends; the plaintext would still be sent). Unlike the negative-TTL decision above, there was no existing parameter to reuse, so this is a deliberate interface addition: a third-party `ResponseInterface` implementation must add the method. `withCookies([])` also covers the "drop every cookie" case.
 - **`SameSite` is a trailing optional `withCookie()` parameter, empty by default** — `''` omits the attribute, so every existing caller keeps its exact `Set-Cookie` output; callers opt in per cookie (the framework's `XsrfCookieMiddleware` and maintenance bypass cookie send `Lax`). `Cookie` normalizes the value case-insensitively and rejects anything but `Lax`/`Strict`/`None`, and `None` without `Secure` (browsers drop such cookies silently).
 - **No JSON/redirect helpers** — `Response::json()`, `Response::redirect()`, etc. are application-layer conveniences. They do not belong in the value object itself.

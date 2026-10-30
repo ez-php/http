@@ -185,4 +185,26 @@ interface RequestInterface
      * @return bool
      */
     public function accepts(string $contentType): bool;
+
+    /**
+     * Return a copy carrying `$value` under the attribute `$name` — for middleware
+     * that hands a resolved object (the current user's resource, a tenant) to the
+     * action. Attributes never come from the client.
+     *
+     * @param string $name
+     * @param mixed  $value
+     *
+     * @return static
+     */
+    public function withAttribute(string $name, mixed $value): static;
+
+    /**
+     * Return the attribute `$name`, or `$default` when no middleware set it.
+     *
+     * @param string $name
+     * @param mixed  $default
+     *
+     * @return mixed
+     */
+    public function attribute(string $name, mixed $default = null): mixed;
 }

@@ -49,6 +49,8 @@ $file = $request->file('avatar');  // returns UploadedFile|null
 // Immutable — returns a new instance
 $request = $request->withMethod('PATCH');
 $request = $request->withParams(['id' => '42']);
+$request = $request->withAttribute('hero', $hero);   // set by middleware…
+$hero = $request->attribute('hero');                // …read by the action
 ```
 
 ### Response
